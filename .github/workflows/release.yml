@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   goreleaser:
-    runs-on: ubuntu-latest-8cpu
+    runs-on: ubuntu-latest
     # Bind to the `release` environment so its secrets (GPG_PRIVATE_KEY, PASSPHRASE)
     # are exposed to this job. Doing so also enforces the environment's protection
     # rules: manual reviewer approval and the v* tag deployment restriction.

@@ -21,7 +21,7 @@ surface tracks the module.
 ```hcl
 terraform {
   required_providers {
-    teams = { source = "terraprovider/teams" }
+    teams = { source = "johnwc/teams" }
   }
 }
 

@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-test:
-    runs-on: ubuntu-latest-8cpu
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -37,7 +37,7 @@ jobs:
         run: go test -race ./...
 
   lint:
-    runs-on: ubuntu-latest-8cpu
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -59,7 +59,7 @@ jobs:
         run: golangci-lint run --timeout 5m
 
   docs:
-    runs-on: ubuntu-latest-8cpu
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

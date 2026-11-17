@@ -21,7 +21,7 @@ func main() {
 	flag.Parse()
 
 	err := providerserver.Serve(context.Background(), provider.New(version), providerserver.ServeOpts{
-		Address: "registry.terraform.io/terraprovider/teams",
+		Address: "registry.terraform.io/johnwc/teams",
 		Debug:   debug,
 	})
 	if err != nil {

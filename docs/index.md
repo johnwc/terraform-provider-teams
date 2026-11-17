@@ -14,7 +14,7 @@ Manage Microsoft Teams admin configuration via the Teams config API. Authenticat
 ```terraform
 terraform {
   required_providers {
-    teams = { source = "terraprovider/teams" }
+    teams = { source = "johnwc/teams" }
   }
 }
 
