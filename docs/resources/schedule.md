@@ -3,12 +3,12 @@
 page_title: "teams_schedule Resource - teams"
 subcategory: ""
 description: |-
-  Manages a Teams auto attendant schedule via New-CsOnlineSchedule / Get-CsOnlineSchedule / Set-CsOnlineSchedule / Remove-CsOnlineSchedule. Exactly one of weekly or fixed must be set.
+  Manages a schedule for Teams auto attendants: weekly business hours or fixed date ranges such as holidays. Exactly one of weekly or fixed must be set.
 ---
 
 # teams_schedule (Resource)
 
-Manages a Teams auto attendant schedule via New-CsOnlineSchedule / Get-CsOnlineSchedule / Set-CsOnlineSchedule / Remove-CsOnlineSchedule. Exactly one of weekly or fixed must be set.
+Manages a schedule for Teams auto attendants: weekly business hours or fixed date ranges such as holidays. Exactly one of weekly or fixed must be set.
 
 ## Example Usage
 

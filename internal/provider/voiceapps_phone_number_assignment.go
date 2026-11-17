@@ -48,7 +48,7 @@ func (r *phoneNumberAssignmentResource) Metadata(_ context.Context, req resource
 func (r *phoneNumberAssignmentResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	replace := []planmodifier.String{stringplanmodifier.RequiresReplace()}
 	resp.Schema = schema.Schema{
-		Description: "Assigns a phone number to a user or resource account via Set-CsPhoneNumberAssignment / Get-CsPhoneNumberAssignment / Remove-CsPhoneNumberAssignment. " +
+		Description: "Assigns a Teams phone number to a user or resource account. " +
 			"The target needs the matching license: for a resource account a Teams Phone Resource Account license, plus a calling plan or Communications Credits for calling_plan numbers. Any change requires replacement.",
 		Attributes: map[string]schema.Attribute{
 			"id":                schema.StringAttribute{Computed: true, Description: "<identity>/<phone_number>.", PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},

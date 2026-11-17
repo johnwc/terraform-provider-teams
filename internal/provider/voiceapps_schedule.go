@@ -157,7 +157,7 @@ func (r *scheduleResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 		weekly[d.attr] = schema.ListNestedAttribute{Optional: true, NestedObject: hours, Description: fmt.Sprintf("Time ranges on %s.", strings.ToUpper(d.attr[:1])+d.attr[1:])}
 	}
 	resp.Schema = schema.Schema{
-		Description: "Manages a Teams auto attendant schedule via New-CsOnlineSchedule / Get-CsOnlineSchedule / Set-CsOnlineSchedule / Remove-CsOnlineSchedule. Exactly one of weekly or fixed must be set.",
+		Description: "Manages a schedule for Teams auto attendants: weekly business hours or fixed date ranges such as holidays. Exactly one of weekly or fixed must be set.",
 		Attributes: map[string]schema.Attribute{
 			"id":                           schema.StringAttribute{Computed: true, Description: "Schedule id.", PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"name":                         schema.StringAttribute{Required: true, Description: "Display name of the schedule."},

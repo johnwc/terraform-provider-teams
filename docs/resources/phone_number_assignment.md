@@ -3,12 +3,12 @@
 page_title: "teams_phone_number_assignment Resource - teams"
 subcategory: ""
 description: |-
-  Assigns a phone number to a user or resource account via Set-CsPhoneNumberAssignment / Get-CsPhoneNumberAssignment / Remove-CsPhoneNumberAssignment. The target needs the matching license: for a resource account a Teams Phone Resource Account license, plus a calling plan or Communications Credits for calling_plan numbers. Any change requires replacement.
+  Assigns a Teams phone number to a user or resource account. The target needs the matching license: for a resource account a Teams Phone Resource Account license, plus a calling plan or Communications Credits for calling_plan numbers. Any change requires replacement.
 ---
 
 # teams_phone_number_assignment (Resource)
 
-Assigns a phone number to a user or resource account via Set-CsPhoneNumberAssignment / Get-CsPhoneNumberAssignment / Remove-CsPhoneNumberAssignment. The target needs the matching license: for a resource account a Teams Phone Resource Account license, plus a calling plan or Communications Credits for calling_plan numbers. Any change requires replacement.
+Assigns a Teams phone number to a user or resource account. The target needs the matching license: for a resource account a Teams Phone Resource Account license, plus a calling plan or Communications Credits for calling_plan numbers. Any change requires replacement.
 
 ## Example Usage
 

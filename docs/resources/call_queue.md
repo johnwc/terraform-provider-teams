@@ -3,12 +3,12 @@
 page_title: "teams_call_queue Resource - teams"
 subcategory: ""
 description: |-
-  Manages a Teams call queue via New-CsCallQueue / Get-CsCallQueue / Set-CsCallQueue / Remove-CsCallQueue.
+  Manages a Teams call queue: how calls ring the agents, and what happens on overflow, on timeout and when no agents are available.
 ---
 
 # teams_call_queue (Resource)
 
-Manages a Teams call queue via New-CsCallQueue / Get-CsCallQueue / Set-CsCallQueue / Remove-CsCallQueue.
+Manages a Teams call queue: how calls ring the agents, and what happens on overflow, on timeout and when no agents are available.
 
 ## Example Usage
 
