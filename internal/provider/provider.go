@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"net/http"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -11,6 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 
+	"github.com/terraprovider/go-msadmin/httpx"
+	"github.com/terraprovider/go-msadmin/retry"
 	"github.com/terraprovider/go-teams/cs"
 	"github.com/terraprovider/go-teams/teamsapi"
 	"github.com/terraprovider/terraform-provider-teams/internal/clients"
@@ -69,23 +72,32 @@ func (p *teamsProvider) Configure(ctx context.Context, req provider.ConfigureReq
 		return
 	}
 
+	httpClient := &http.Client{Transport: retry.NewTransport(tnmHeaderTransport{next: httpx.NewDebugTransport(nil)}, retry.Config{})}
 	api, err := teamsapi.New(teamsapi.Options{
 		Environment: teamsapi.Public,
 		TenantID:    tid,
 		Tokens:      tp,
+		HTTPClient:  httpClient,
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Client initialisation error", err.Error())
 		return
 	}
 
-	c := &clients.Client{API: api, CS: cs.New(api), TenantID: tid}
+	c := &clients.Client{
+		API:      api,
+		CS:       cs.New(api),
+		TenantID: tid,
+		Tokens:   tp,
+		HTTP:     httpClient,
+	}
 	resp.ResourceData = c
 	resp.DataSourceData = c
 }
 
 func (p *teamsProvider) Resources(_ context.Context) []func() resource.Resource {
-	return generatedResources()
+	return append(generatedResources(), NewCallQueueResource, NewScheduleResource, NewAutoAttendantResource,
+		NewResourceAccountResource, NewResourceAccountAssociationResource, NewPhoneNumberAssignmentResource)
 }
 
 func (p *teamsProvider) DataSources(_ context.Context) []func() datasource.DataSource {
