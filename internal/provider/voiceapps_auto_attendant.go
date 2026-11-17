@@ -184,7 +184,7 @@ func aaCallFlowAttributes(scheduled bool) map[string]schema.Attribute {
 
 func (r *autoAttendantResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Manages a Teams auto attendant via New-CsAutoAttendant / Get-CsAutoAttendant / Set-CsAutoAttendant / Remove-CsAutoAttendant. Schedules are referenced by id and managed with teams_schedule.",
+		Description: "Manages a Teams auto attendant: the greeting and key-press menu callers hear, plus the after-hours and holiday call flows. Schedules are referenced by id and managed with teams_schedule.",
 		Attributes: map[string]schema.Attribute{
 			"id":                    schema.StringAttribute{Computed: true, Description: "Auto attendant id.", PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"name":                  schema.StringAttribute{Required: true, Description: "Display name of the auto attendant."},

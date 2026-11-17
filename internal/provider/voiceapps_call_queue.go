@@ -141,7 +141,7 @@ func (r *callQueueResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 		attrs[b.attr+"_disconnect_text_to_speech_prompt"] = schema.StringAttribute{Optional: true, Description: fmt.Sprintf("Text-to-speech prompt played before the %s disconnect.", b.label)}
 	}
 	resp.Schema = schema.Schema{
-		Description: "Manages a Teams call queue via New-CsCallQueue / Get-CsCallQueue / Set-CsCallQueue / Remove-CsCallQueue.",
+		Description: "Manages a Teams call queue: how calls ring the agents, and what happens on overflow, on timeout and when no agents are available.",
 		Attributes:  attrs,
 	}
 }

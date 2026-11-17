@@ -3,12 +3,12 @@
 page_title: "teams_resource_account_association Resource - teams"
 subcategory: ""
 description: |-
-  Associates a Teams resource account with an auto attendant or call queue via New-CsOnlineApplicationInstanceAssociation / Get-CsOnlineApplicationInstanceAssociation / Remove-CsOnlineApplicationInstanceAssociation. Any change requires replacement.
+  Links a Teams resource account to an auto attendant or call queue, so calls to the account's number reach it. Any change requires replacement.
 ---
 
 # teams_resource_account_association (Resource)
 
-Associates a Teams resource account with an auto attendant or call queue via New-CsOnlineApplicationInstanceAssociation / Get-CsOnlineApplicationInstanceAssociation / Remove-CsOnlineApplicationInstanceAssociation. Any change requires replacement.
+Links a Teams resource account to an auto attendant or call queue, so calls to the account's number reach it. Any change requires replacement.
 
 ## Example Usage
 

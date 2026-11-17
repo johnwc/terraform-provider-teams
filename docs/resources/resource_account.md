@@ -3,12 +3,12 @@
 page_title: "teams_resource_account Resource - teams"
 subcategory: ""
 description: |-
-  Manages a Teams resource account via New-CsOnlineApplicationInstance / Get-CsOnlineApplicationInstance. Renames and deletes go through Microsoft Graph. Needs the Teams Telephony Administrator and User Administrator roles. To receive a phone number the account needs a Teams Phone Resource Account license, which is managed outside this provider (e.g. with azuread or in Microsoft 365).
+  Manages a Teams resource account, the identity that gives an auto attendant or call queue its phone number. Renames and deletes go through Microsoft Graph. Needs the Teams Telephony Administrator and User Administrator roles. To receive a phone number the account needs a Teams Phone Resource Account license, which is managed outside this provider (e.g. with azuread or in Microsoft 365).
 ---
 
 # teams_resource_account (Resource)
 
-Manages a Teams resource account via New-CsOnlineApplicationInstance / Get-CsOnlineApplicationInstance. Renames and deletes go through Microsoft Graph. Needs the Teams Telephony Administrator and User Administrator roles. To receive a phone number the account needs a Teams Phone Resource Account license, which is managed outside this provider (e.g. with azuread or in Microsoft 365).
+Manages a Teams resource account, the identity that gives an auto attendant or call queue its phone number. Renames and deletes go through Microsoft Graph. Needs the Teams Telephony Administrator and User Administrator roles. To receive a phone number the account needs a Teams Phone Resource Account license, which is managed outside this provider (e.g. with azuread or in Microsoft 365).
 
 ## Example Usage
 

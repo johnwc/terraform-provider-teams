@@ -3,12 +3,12 @@
 page_title: "teams_auto_attendant Resource - teams"
 subcategory: ""
 description: |-
-  Manages a Teams auto attendant via New-CsAutoAttendant / Get-CsAutoAttendant / Set-CsAutoAttendant / Remove-CsAutoAttendant. Schedules are referenced by id and managed with teams_schedule.
+  Manages a Teams auto attendant: the greeting and key-press menu callers hear, plus the after-hours and holiday call flows. Schedules are referenced by id and managed with teams_schedule.
 ---
 
 # teams_auto_attendant (Resource)
 
-Manages a Teams auto attendant via New-CsAutoAttendant / Get-CsAutoAttendant / Set-CsAutoAttendant / Remove-CsAutoAttendant. Schedules are referenced by id and managed with teams_schedule.
+Manages a Teams auto attendant: the greeting and key-press menu callers hear, plus the after-hours and holiday call flows. Schedules are referenced by id and managed with teams_schedule.
 
 ## Example Usage
 

@@ -52,7 +52,7 @@ func (r *resourceAccountAssociationResource) Metadata(_ context.Context, req res
 func (r *resourceAccountAssociationResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	replace := []planmodifier.String{stringplanmodifier.RequiresReplace()}
 	resp.Schema = schema.Schema{
-		Description: "Associates a Teams resource account with an auto attendant or call queue via New-CsOnlineApplicationInstanceAssociation / Get-CsOnlineApplicationInstanceAssociation / Remove-CsOnlineApplicationInstanceAssociation. Any change requires replacement.",
+		Description: "Links a Teams resource account to an auto attendant or call queue, so calls to the account's number reach it. Any change requires replacement.",
 		Attributes: map[string]schema.Attribute{
 			"id":                  schema.StringAttribute{Computed: true, Description: "Object id of the resource account.", PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"resource_account_id": schema.StringAttribute{Required: true, Description: "Object id of the resource account.", PlanModifiers: replace},
