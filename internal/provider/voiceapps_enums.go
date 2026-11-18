@@ -144,6 +144,12 @@ var (
 		[2]string{"direct_routing", "DirectRouting"},
 		[2]string{"operator_connect", "OperatorConnect"},
 	)
+	// audioFileUsages maps the audio file usage to its Teams application id.
+	audioFileUsages = newWireEnum(
+		[2]string{"auto_attendant", "OrgAutoAttendant"},
+		[2]string{"call_queue", "HuntGroup"},
+		[2]string{"tenant_global", "TenantGlobal"},
+	)
 )
 
 // fromWireWord is fromWire restricted to Teams words; numbers are rejected.

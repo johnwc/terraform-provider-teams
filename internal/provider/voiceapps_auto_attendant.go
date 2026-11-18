@@ -36,6 +36,7 @@ func NewAutoAttendantResource() resource.Resource { return &autoAttendantResourc
 
 const (
 	aaTextToSpeech       = "TextToSpeech"
+	aaAudioFile          = "AudioFile"
 	aaAssocAfterHours    = "AfterHours"
 	aaAssocHoliday       = "Holiday"
 	aaAfterHoursPriority = 1
@@ -55,34 +56,45 @@ type autoAttendantModel struct {
 }
 
 type aaMenuOptionModel struct {
-	Key          types.String `tfsdk:"key"`
-	Action       types.String `tfsdk:"action"`
-	TargetID     types.String `tfsdk:"target_id"`
-	TargetType   types.String `tfsdk:"target_type"`
-	Announcement types.String `tfsdk:"announcement"`
+	Key                     types.String `tfsdk:"key"`
+	Action                  types.String `tfsdk:"action"`
+	TargetID                types.String `tfsdk:"target_id"`
+	TargetType              types.String `tfsdk:"target_type"`
+	Announcement            types.String `tfsdk:"announcement"`
+	AnnouncementAudioFileID types.String `tfsdk:"announcement_audio_file_id"`
 }
 
 type aaCallFlowModel struct {
-	ID         types.String        `tfsdk:"id"`
-	Greeting   types.String        `tfsdk:"greeting"`
-	MenuPrompt types.String        `tfsdk:"menu_prompt"`
-	MenuOption []aaMenuOptionModel `tfsdk:"menu_option"`
+	ID                    types.String        `tfsdk:"id"`
+	Greeting              types.String        `tfsdk:"greeting"`
+	GreetingAudioFileID   types.String        `tfsdk:"greeting_audio_file_id"`
+	MenuPrompt            types.String        `tfsdk:"menu_prompt"`
+	MenuPromptAudioFileID types.String        `tfsdk:"menu_prompt_audio_file_id"`
+	MenuOption            []aaMenuOptionModel `tfsdk:"menu_option"`
 }
 
 type aaScheduledCallFlowModel struct {
-	ID         types.String        `tfsdk:"id"`
-	ScheduleID types.String        `tfsdk:"schedule_id"`
-	Greeting   types.String        `tfsdk:"greeting"`
-	MenuPrompt types.String        `tfsdk:"menu_prompt"`
-	MenuOption []aaMenuOptionModel `tfsdk:"menu_option"`
+	ID                    types.String        `tfsdk:"id"`
+	ScheduleID            types.String        `tfsdk:"schedule_id"`
+	Greeting              types.String        `tfsdk:"greeting"`
+	GreetingAudioFileID   types.String        `tfsdk:"greeting_audio_file_id"`
+	MenuPrompt            types.String        `tfsdk:"menu_prompt"`
+	MenuPromptAudioFileID types.String        `tfsdk:"menu_prompt_audio_file_id"`
+	MenuOption            []aaMenuOptionModel `tfsdk:"menu_option"`
 }
 
 func (s *aaScheduledCallFlowModel) flow() aaCallFlowModel {
-	return aaCallFlowModel{ID: s.ID, Greeting: s.Greeting, MenuPrompt: s.MenuPrompt, MenuOption: s.MenuOption}
+	return aaCallFlowModel{
+		ID: s.ID, Greeting: s.Greeting, GreetingAudioFileID: s.GreetingAudioFileID,
+		MenuPrompt: s.MenuPrompt, MenuPromptAudioFileID: s.MenuPromptAudioFileID, MenuOption: s.MenuOption,
+	}
 }
 
 func scheduledFlow(f aaCallFlowModel, scheduleID types.String) aaScheduledCallFlowModel {
-	return aaScheduledCallFlowModel{ID: f.ID, ScheduleID: scheduleID, Greeting: f.Greeting, MenuPrompt: f.MenuPrompt, MenuOption: f.MenuOption}
+	return aaScheduledCallFlowModel{
+		ID: f.ID, ScheduleID: scheduleID, Greeting: f.Greeting, GreetingAudioFileID: f.GreetingAudioFileID,
+		MenuPrompt: f.MenuPrompt, MenuPromptAudioFileID: f.MenuPromptAudioFileID, MenuOption: f.MenuOption,
+	}
 }
 
 // aaFlows holds the decoded call flow blocks of the model.
@@ -94,24 +106,29 @@ type aaFlows struct {
 
 var (
 	aaMenuOptionType = types.ObjectType{AttrTypes: map[string]attr.Type{
-		"key":          types.StringType,
-		"action":       types.StringType,
-		"target_id":    types.StringType,
-		"target_type":  types.StringType,
-		"announcement": types.StringType,
+		"key":                        types.StringType,
+		"action":                     types.StringType,
+		"target_id":                  types.StringType,
+		"target_type":                types.StringType,
+		"announcement":               types.StringType,
+		"announcement_audio_file_id": types.StringType,
 	}}
 	aaCallFlowAttrTypes = map[string]attr.Type{
-		"id":          types.StringType,
-		"greeting":    types.StringType,
-		"menu_prompt": types.StringType,
-		"menu_option": types.ListType{ElemType: aaMenuOptionType},
+		"id":                        types.StringType,
+		"greeting":                  types.StringType,
+		"greeting_audio_file_id":    types.StringType,
+		"menu_prompt":               types.StringType,
+		"menu_prompt_audio_file_id": types.StringType,
+		"menu_option":               types.ListType{ElemType: aaMenuOptionType},
 	}
 	aaScheduledCallFlowAttrTypes = map[string]attr.Type{
-		"id":          types.StringType,
-		"schedule_id": types.StringType,
-		"greeting":    types.StringType,
-		"menu_prompt": types.StringType,
-		"menu_option": types.ListType{ElemType: aaMenuOptionType},
+		"id":                        types.StringType,
+		"schedule_id":               types.StringType,
+		"greeting":                  types.StringType,
+		"greeting_audio_file_id":    types.StringType,
+		"menu_prompt":               types.StringType,
+		"menu_prompt_audio_file_id": types.StringType,
+		"menu_option":               types.ListType{ElemType: aaMenuOptionType},
 	}
 )
 
@@ -161,18 +178,21 @@ func (r *autoAttendantResource) Metadata(_ context.Context, req resource.Metadat
 // aaCallFlowAttributes returns the attributes of a call flow block.
 func aaCallFlowAttributes(scheduled bool) map[string]schema.Attribute {
 	attrs := map[string]schema.Attribute{
-		"id":          schema.StringAttribute{Computed: true, Description: "Call flow id, generated by the provider.", PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
-		"greeting":    schema.StringAttribute{Optional: true, Description: "Text-to-speech greeting played when the call flow starts."},
-		"menu_prompt": schema.StringAttribute{Optional: true, Description: "Text-to-speech prompt describing the menu options."},
+		"id":                        schema.StringAttribute{Computed: true, Description: "Call flow id, generated by the provider.", PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
+		"greeting":                  schema.StringAttribute{Optional: true, Description: "Text-to-speech greeting played when the call flow starts. Conflicts with greeting_audio_file_id."},
+		"greeting_audio_file_id":    schema.StringAttribute{Optional: true, Description: "Id of a teams_audio_file (usage auto_attendant) played as the greeting. Conflicts with greeting."},
+		"menu_prompt":               schema.StringAttribute{Optional: true, Description: "Text-to-speech prompt describing the menu options. Conflicts with menu_prompt_audio_file_id."},
+		"menu_prompt_audio_file_id": schema.StringAttribute{Optional: true, Description: "Id of a teams_audio_file (usage auto_attendant) played as the menu prompt. Conflicts with menu_prompt."},
 		"menu_option": schema.ListNestedAttribute{
 			Optional:    true,
 			Description: "Menu options. An automatic option must be the only one.",
 			NestedObject: schema.NestedAttributeObject{Attributes: map[string]schema.Attribute{
-				"key":          schema.StringAttribute{Required: true, Description: "Key: automatic, 0-9, star or pound.", Validators: []validator.String{aaMenuKeys.stringValidator()}},
-				"action":       schema.StringAttribute{Required: true, Description: "Action: disconnect, transfer, transfer_to_operator or announcement.", Validators: []validator.String{aaMenuActions.stringValidator()}},
-				"target_id":    schema.StringAttribute{Optional: true, Description: "Transfer target: a tel: number, a user object id or a resource account object id. Required for transfer."},
-				"target_type":  schema.StringAttribute{Optional: true, Description: "Transfer target type: user, application_endpoint, external_pstn or shared_voicemail. Required for transfer.", Validators: []validator.String{aaTargetTypes.stringValidator()}},
-				"announcement": schema.StringAttribute{Optional: true, Description: "Text-to-speech announcement. Required for announcement."},
+				"key":                        schema.StringAttribute{Required: true, Description: "Key: automatic, 0-9, star or pound.", Validators: []validator.String{aaMenuKeys.stringValidator()}},
+				"action":                     schema.StringAttribute{Required: true, Description: "Action: disconnect, transfer, transfer_to_operator or announcement.", Validators: []validator.String{aaMenuActions.stringValidator()}},
+				"target_id":                  schema.StringAttribute{Optional: true, Description: "Transfer target: a tel: number, a user object id or a resource account object id. Required for transfer."},
+				"target_type":                schema.StringAttribute{Optional: true, Description: "Transfer target type: user, application_endpoint, external_pstn or shared_voicemail. Required for transfer.", Validators: []validator.String{aaTargetTypes.stringValidator()}},
+				"announcement":               schema.StringAttribute{Optional: true, Description: "Text-to-speech announcement. For announcement, set this or announcement_audio_file_id."},
+				"announcement_audio_file_id": schema.StringAttribute{Optional: true, Description: "Id of a teams_audio_file (usage auto_attendant) played as the announcement. For announcement, set this or announcement."},
 			}},
 		},
 	}
@@ -332,12 +352,60 @@ func (r *autoAttendantResource) ImportState(ctx context.Context, req resource.Im
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-// autoAttendantUpdateBody overlays body onto the stored object for the PUT.
+// autoAttendantUpdateBody overlays body onto the stored object for the PUT and
+// fills audio file prompt names from the stored object.
 func autoAttendantUpdateBody(cur, body map[string]any) map[string]any {
 	merged := overlayObject(cur, body)
 	// Schedules is read-only; the PUT omits it.
 	delete(merged, "Schedules")
-	return merged
+	names := map[string]string{}
+	aaAudioFileNames(cur, names)
+	out, _ := aaFillAudioFileNames(merged, names).(map[string]any)
+	return out
+}
+
+// aaAudioFileNames collects the FileName of each AudioFilePrompt in v by lower-case Id.
+func aaAudioFileNames(v any, names map[string]string) {
+	switch t := v.(type) {
+	case map[string]any:
+		if afp, ok := t["AudioFilePrompt"].(map[string]any); ok {
+			if id, name := getString(afp, "Id"), getString(afp, "FileName"); id != "" && name != "" {
+				names[strings.ToLower(id)] = name
+			}
+		}
+		for _, e := range t {
+			aaAudioFileNames(e, names)
+		}
+	case []any:
+		for _, e := range t {
+			aaAudioFileNames(e, names)
+		}
+	}
+}
+
+// aaFillAudioFileNames returns a deep copy of v with FileName set on each
+// AudioFilePrompt that lacks one and whose Id is in names.
+func aaFillAudioFileNames(v any, names map[string]string) any {
+	switch t := v.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(t))
+		for k, e := range t {
+			out[k] = aaFillAudioFileNames(e, names)
+		}
+		if afp, ok := out["AudioFilePrompt"].(map[string]any); ok && getString(afp, "FileName") == "" {
+			if name := names[strings.ToLower(getString(afp, "Id"))]; name != "" {
+				afp["FileName"] = name
+			}
+		}
+		return out
+	case []any:
+		out := make([]any, len(t))
+		for i, e := range t {
+			out[i] = aaFillAudioFileNames(e, names)
+		}
+		return out
+	}
+	return v
 }
 
 // validateAutoAttendant checks the menu rules Teams enforces on write. Blocks that
@@ -352,19 +420,43 @@ func validateAutoAttendant(ctx context.Context, m *autoAttendantModel) diag.Diag
 		return diags
 	}
 	if !m.DefaultCallFlow.IsNull() && !m.DefaultCallFlow.IsUnknown() {
+		diags.Append(validateAAPrompts(path.Root("default_call_flow"), f.Default)...)
 		diags.Append(validateAAMenu(path.Root("default_call_flow"), f.Default.MenuOption)...)
 	}
 	if f.AfterHours != nil {
 		if f.AfterHours.ScheduleID.IsNull() {
 			diags.AddAttributeError(path.Root("after_hours").AtName("schedule_id"), "Invalid auto attendant configuration", "schedule_id is required in the after_hours block.")
 		}
+		diags.Append(validateAAPrompts(path.Root("after_hours"), f.AfterHours.flow())...)
 		diags.Append(validateAAMenu(path.Root("after_hours"), f.AfterHours.MenuOption)...)
 	}
 	for i, h := range f.Holidays {
 		if h.ScheduleID.IsNull() {
 			diags.AddAttributeError(path.Root("holiday").AtListIndex(i).AtName("schedule_id"), "Invalid auto attendant configuration", "schedule_id is required in each holiday block.")
 		}
+		diags.Append(validateAAPrompts(path.Root("holiday").AtListIndex(i), h.flow())...)
 		diags.Append(validateAAMenu(path.Root("holiday").AtListIndex(i), h.MenuOption)...)
+	}
+	return diags
+}
+
+// isSet reports whether s is known and not null.
+func isSet(s types.String) bool { return !s.IsNull() && !s.IsUnknown() }
+
+// validateAAPrompts checks that each prompt is either text or an audio file, not both.
+func validateAAPrompts(p path.Path, f aaCallFlowModel) diag.Diagnostics {
+	var diags diag.Diagnostics
+	for _, pair := range []struct {
+		text, audio       string
+		textVal, audioVal types.String
+	}{
+		{"greeting", "greeting_audio_file_id", f.Greeting, f.GreetingAudioFileID},
+		{"menu_prompt", "menu_prompt_audio_file_id", f.MenuPrompt, f.MenuPromptAudioFileID},
+	} {
+		if isSet(pair.textVal) && isSet(pair.audioVal) {
+			diags.AddAttributeError(p.AtName(pair.audio), "Invalid auto attendant configuration",
+				fmt.Sprintf("%s and %s cannot both be set.", pair.text, pair.audio))
+		}
 	}
 	return diags
 }
@@ -411,12 +503,18 @@ func validateAAMenu(p path.Path, opts []aaMenuOptionModel) diag.Diagnostics {
 			if !o.Key.IsNull() && !o.Key.IsUnknown() && o.Key.ValueString() == "automatic" {
 				diags.AddAttributeError(op.AtName("key"), summary, "action \"announcement\" is not allowed with key \"automatic\".")
 			}
-			if o.Announcement.IsNull() {
-				diags.AddAttributeError(op.AtName("announcement"), summary, "announcement is required when action is \"announcement\".")
+			if o.Announcement.IsNull() && o.AnnouncementAudioFileID.IsNull() {
+				diags.AddAttributeError(op.AtName("announcement"), summary, "one of announcement or announcement_audio_file_id is required when action is \"announcement\".")
+			}
+			if isSet(o.Announcement) && isSet(o.AnnouncementAudioFileID) {
+				diags.AddAttributeError(op.AtName("announcement_audio_file_id"), summary, "announcement and announcement_audio_file_id cannot both be set.")
 			}
 		}
-		if action != "announcement" && !o.Announcement.IsNull() && !o.Announcement.IsUnknown() {
+		if action != "announcement" && isSet(o.Announcement) {
 			diags.AddAttributeError(op.AtName("announcement"), summary, "announcement must be unset unless action is \"announcement\".")
+		}
+		if action != "announcement" && isSet(o.AnnouncementAudioFileID) {
+			diags.AddAttributeError(op.AtName("announcement_audio_file_id"), summary, "announcement_audio_file_id must be unset unless action is \"announcement\".")
 		}
 	}
 	return diags
@@ -512,16 +610,32 @@ func aaAssociationWire(typ string, f *aaScheduledCallFlowModel, priority int) ma
 	}
 }
 
-// aaPromptsWire returns a single text-to-speech prompt list, or an empty list when s is null.
-func aaPromptsWire(s types.String) []any {
-	if s.IsNull() || s.IsUnknown() {
-		return []any{}
+// aaPromptsWire returns a single prompt list for the audio file or the text, or an empty list when both are null.
+func aaPromptsWire(text, audioFileID types.String) []any {
+	if p := aaPromptOrNil(text, audioFileID); p != nil {
+		return []any{p}
 	}
-	return []any{aaPromptWire(s.ValueString())}
+	return []any{}
+}
+
+// aaPromptOrNil returns an audio file prompt when audioFileID is set, else a
+// text-to-speech prompt when text is set, else nil.
+func aaPromptOrNil(text, audioFileID types.String) map[string]any {
+	if isSet(audioFileID) {
+		return aaAudioPromptWire(audioFileID.ValueString())
+	}
+	if isSet(text) {
+		return aaPromptWire(text.ValueString())
+	}
+	return nil
 }
 
 func aaPromptWire(text string) map[string]any {
 	return map[string]any{"ActiveType": aaTextToSpeech, "TextToSpeechPrompt": text}
+}
+
+func aaAudioPromptWire(id string) map[string]any {
+	return map[string]any{"ActiveType": aaAudioFile, "AudioFilePrompt": map[string]any{"Id": id}}
 }
 
 func aaCallFlowWire(name string, f aaCallFlowModel, p path.Path) (map[string]any, diag.Diagnostics) {
@@ -551,18 +665,18 @@ func aaCallFlowWire(name string, f aaCallFlowModel, p path.Path) (map[string]any
 			}
 			opt["CallTarget"] = target
 		}
-		if !o.Announcement.IsNull() && !o.Announcement.IsUnknown() {
-			opt["Prompt"] = aaPromptWire(o.Announcement.ValueString())
+		if p := aaPromptOrNil(o.Announcement, o.AnnouncementAudioFileID); p != nil {
+			opt["Prompt"] = p
 		}
 		opts = append(opts, opt)
 	}
 	return map[string]any{
 		"Id":        f.ID.ValueString(),
 		"Name":      name,
-		"Greetings": aaPromptsWire(f.Greeting),
+		"Greetings": aaPromptsWire(f.Greeting, f.GreetingAudioFileID),
 		"Menu": map[string]any{
 			"Name":        name + " menu",
-			"Prompts":     aaPromptsWire(f.MenuPrompt),
+			"Prompts":     aaPromptsWire(f.MenuPrompt, f.MenuPromptAudioFileID),
 			"MenuOptions": opts,
 		},
 	}, diags
@@ -649,10 +763,10 @@ func aaCallFlowFromWire(flow map[string]any, prior aaCallFlowModel, field string
 		out.ID = types.StringValue(id)
 	}
 	var d diag.Diagnostics
-	out.Greeting, d = aaPromptFromWire(flow["Greetings"], prior.Greeting, field+".Greetings")
+	out.Greeting, out.GreetingAudioFileID, d = aaPromptFromWire(flow["Greetings"], prior.Greeting, prior.GreetingAudioFileID, field+".Greetings")
 	diags.Append(d...)
 	menu, _ := flow["Menu"].(map[string]any)
-	out.MenuPrompt, d = aaPromptFromWire(menu["Prompts"], prior.MenuPrompt, field+".Menu.Prompts")
+	out.MenuPrompt, out.MenuPromptAudioFileID, d = aaPromptFromWire(menu["Prompts"], prior.MenuPrompt, prior.MenuPromptAudioFileID, field+".Menu.Prompts")
 	diags.Append(d...)
 
 	priorByKey := map[string]aaMenuOptionModel{}
@@ -672,7 +786,7 @@ func aaCallFlowFromWire(flow map[string]any, prior aaCallFlowModel, field string
 		of := fmt.Sprintf("%s.Menu.MenuOptions[%d]", field, i)
 		o := aaMenuOptionModel{
 			Key: types.StringNull(), Action: types.StringNull(), TargetID: types.StringNull(),
-			TargetType: types.StringNull(), Announcement: types.StringNull(),
+			TargetType: types.StringNull(), Announcement: types.StringNull(), AnnouncementAudioFileID: types.StringNull(),
 		}
 		diags.Append(readEnum(it, "DtmfResponse", of+".DtmfResponse", aaMenuKeys, true, &o.Key)...)
 		diags.Append(readEnum(it, "Action", of+".Action", aaMenuActions, true, &o.Action)...)
@@ -684,27 +798,42 @@ func aaCallFlowFromWire(flow map[string]any, prior aaCallFlowModel, field string
 			}
 		}
 		if pm, ok := it["Prompt"].(map[string]any); ok {
-			o.Announcement = optStringValue(pm["TextToSpeechPrompt"], p.Announcement)
+			o.Announcement, o.AnnouncementAudioFileID, d = aaPromptObjectFromWire(pm, p.Announcement, p.AnnouncementAudioFileID, of+".Prompt")
+			diags.Append(d...)
 		}
 		out.MenuOption = append(out.MenuOption, o)
 	}
 	return out, diags
 }
 
-// aaPromptFromWire maps a stored prompt list to its text-to-speech text. Only
-// text-to-speech prompts are supported.
-func aaPromptFromWire(v any, prior types.String, field string) (types.String, diag.Diagnostics) {
-	var diags diag.Diagnostics
+// aaPromptFromWire maps a stored prompt list to its text-to-speech text or audio file id.
+func aaPromptFromWire(v any, priorText, priorAudio types.String, field string) (types.String, types.String, diag.Diagnostics) {
 	items := objectsOf(v)
 	if len(items) == 0 {
-		return types.StringNull(), diags
+		return types.StringNull(), types.StringNull(), nil
 	}
-	at := items[0]["ActiveType"]
-	if s, ok := at.(string); !ok || !strings.EqualFold(s, aaTextToSpeech) {
-		diags.AddError("Unexpected "+field+".ActiveType value", fmt.Sprintf("Teams returned %s.ActiveType = %v; only TextToSpeech is supported.", field, at))
-		return prior, diags
+	return aaPromptObjectFromWire(items[0], priorText, priorAudio, field)
+}
+
+// aaPromptObjectFromWire maps one stored prompt to its text-to-speech text or audio file id.
+func aaPromptObjectFromWire(pm map[string]any, priorText, priorAudio types.String, field string) (types.String, types.String, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	at := pm["ActiveType"]
+	s, _ := at.(string)
+	switch {
+	case strings.EqualFold(s, aaTextToSpeech):
+		return optStringValue(pm["TextToSpeechPrompt"], priorText), types.StringNull(), diags
+	case strings.EqualFold(s, aaAudioFile):
+		afp, _ := pm["AudioFilePrompt"].(map[string]any)
+		id := optIDValue(afp["Id"], priorAudio)
+		if id.IsNull() {
+			diags.AddError("Unexpected "+field+".AudioFilePrompt value", fmt.Sprintf("Teams returned %s.ActiveType = AudioFile without an AudioFilePrompt.Id.", field))
+			return priorText, priorAudio, diags
+		}
+		return types.StringNull(), id, diags
 	}
-	return optStringValue(items[0]["TextToSpeechPrompt"], prior), diags
+	diags.AddError("Unexpected "+field+".ActiveType value", fmt.Sprintf("Teams returned %s.ActiveType = %v; only TextToSpeech and AudioFile are supported.", field, at))
+	return priorText, priorAudio, diags
 }
 
 // aaTargetValue maps a read-back call target id, keeping a prior value that

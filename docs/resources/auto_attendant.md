@@ -69,9 +69,11 @@ resource "teams_auto_attendant" "main" {
 
 Optional:
 
-- `greeting` (String) Text-to-speech greeting played when the call flow starts.
+- `greeting` (String) Text-to-speech greeting played when the call flow starts. Conflicts with greeting_audio_file_id.
+- `greeting_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the greeting. Conflicts with greeting.
 - `menu_option` (Attributes List) Menu options. An automatic option must be the only one. (see [below for nested schema](#nestedatt--after_hours--menu_option))
-- `menu_prompt` (String) Text-to-speech prompt describing the menu options.
+- `menu_prompt` (String) Text-to-speech prompt describing the menu options. Conflicts with menu_prompt_audio_file_id.
+- `menu_prompt_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the menu prompt. Conflicts with menu_prompt.
 - `schedule_id` (String) Id of the teams_schedule that activates this call flow. Required.
 
 Read-Only:
@@ -88,7 +90,8 @@ Required:
 
 Optional:
 
-- `announcement` (String) Text-to-speech announcement. Required for announcement.
+- `announcement` (String) Text-to-speech announcement. For announcement, set this or announcement_audio_file_id.
+- `announcement_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the announcement. For announcement, set this or announcement.
 - `target_id` (String) Transfer target: a tel: number, a user object id or a resource account object id. Required for transfer.
 - `target_type` (String) Transfer target type: user, application_endpoint, external_pstn or shared_voicemail. Required for transfer.
 
@@ -99,9 +102,11 @@ Optional:
 
 Optional:
 
-- `greeting` (String) Text-to-speech greeting played when the call flow starts.
+- `greeting` (String) Text-to-speech greeting played when the call flow starts. Conflicts with greeting_audio_file_id.
+- `greeting_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the greeting. Conflicts with greeting.
 - `menu_option` (Attributes List) Menu options. An automatic option must be the only one. (see [below for nested schema](#nestedatt--default_call_flow--menu_option))
-- `menu_prompt` (String) Text-to-speech prompt describing the menu options.
+- `menu_prompt` (String) Text-to-speech prompt describing the menu options. Conflicts with menu_prompt_audio_file_id.
+- `menu_prompt_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the menu prompt. Conflicts with menu_prompt.
 
 Read-Only:
 
@@ -117,7 +122,8 @@ Required:
 
 Optional:
 
-- `announcement` (String) Text-to-speech announcement. Required for announcement.
+- `announcement` (String) Text-to-speech announcement. For announcement, set this or announcement_audio_file_id.
+- `announcement_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the announcement. For announcement, set this or announcement.
 - `target_id` (String) Transfer target: a tel: number, a user object id or a resource account object id. Required for transfer.
 - `target_type` (String) Transfer target type: user, application_endpoint, external_pstn or shared_voicemail. Required for transfer.
 
@@ -128,9 +134,11 @@ Optional:
 
 Optional:
 
-- `greeting` (String) Text-to-speech greeting played when the call flow starts.
+- `greeting` (String) Text-to-speech greeting played when the call flow starts. Conflicts with greeting_audio_file_id.
+- `greeting_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the greeting. Conflicts with greeting.
 - `menu_option` (Attributes List) Menu options. An automatic option must be the only one. (see [below for nested schema](#nestedatt--holiday--menu_option))
-- `menu_prompt` (String) Text-to-speech prompt describing the menu options.
+- `menu_prompt` (String) Text-to-speech prompt describing the menu options. Conflicts with menu_prompt_audio_file_id.
+- `menu_prompt_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the menu prompt. Conflicts with menu_prompt.
 - `schedule_id` (String) Id of the teams_schedule that activates this call flow. Required.
 
 Read-Only:
@@ -147,6 +155,7 @@ Required:
 
 Optional:
 
-- `announcement` (String) Text-to-speech announcement. Required for announcement.
+- `announcement` (String) Text-to-speech announcement. For announcement, set this or announcement_audio_file_id.
+- `announcement_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the announcement. For announcement, set this or announcement.
 - `target_id` (String) Transfer target: a tel: number, a user object id or a resource account object id. Required for transfer.
 - `target_type` (String) Transfer target type: user, application_endpoint, external_pstn or shared_voicemail. Required for transfer.
