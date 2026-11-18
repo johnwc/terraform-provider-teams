@@ -190,7 +190,7 @@ func aaCallFlowAttributes(scheduled bool) map[string]schema.Attribute {
 				"key":                        schema.StringAttribute{Required: true, Description: "Key: automatic, 0-9, star or pound.", Validators: []validator.String{aaMenuKeys.stringValidator()}},
 				"action":                     schema.StringAttribute{Required: true, Description: "Action: disconnect, transfer, transfer_to_operator or announcement.", Validators: []validator.String{aaMenuActions.stringValidator()}},
 				"target_id":                  schema.StringAttribute{Optional: true, Description: "Transfer target: a tel: number, a user object id or a resource account object id. Required for transfer."},
-				"target_type":                schema.StringAttribute{Optional: true, Description: "Transfer target type: user, application_endpoint, external_pstn or shared_voicemail. Required for transfer.", Validators: []validator.String{aaTargetTypes.stringValidator()}},
+				"target_type":                schema.StringAttribute{Optional: true, Description: "Transfer target type: user, application_endpoint, external_pstn, shared_voicemail, or voice_app (the id of a teams_call_queue or teams_auto_attendant). Required for transfer.", Validators: []validator.String{aaTargetTypes.stringValidator()}},
 				"announcement":               schema.StringAttribute{Optional: true, Description: "Text-to-speech announcement. For announcement, set this or announcement_audio_file_id."},
 				"announcement_audio_file_id": schema.StringAttribute{Optional: true, Description: "Id of a teams_audio_file (usage auto_attendant) played as the announcement. For announcement, set this or announcement."},
 			}},
@@ -458,7 +458,21 @@ func validateAAPrompts(p path.Path, f aaCallFlowModel) diag.Diagnostics {
 				fmt.Sprintf("%s and %s cannot both be set.", pair.text, pair.audio))
 		}
 	}
+	if aaMenuTakesKeys(f.MenuOption) && f.MenuPrompt.IsNull() && f.MenuPromptAudioFileID.IsNull() {
+		diags.AddAttributeError(p.AtName("menu_prompt"), "Invalid auto attendant configuration",
+			"A menu with key-press options needs menu_prompt or menu_prompt_audio_file_id.")
+	}
 	return diags
+}
+
+// aaMenuTakesKeys reports whether any menu option has a known key other than automatic.
+func aaMenuTakesKeys(opts []aaMenuOptionModel) bool {
+	for _, o := range opts {
+		if isSet(o.Key) && o.Key.ValueString() != "automatic" {
+			return true
+		}
+	}
+	return false
 }
 
 func validateAAMenu(p path.Path, opts []aaMenuOptionModel) diag.Diagnostics {

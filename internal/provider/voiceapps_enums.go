@@ -125,6 +125,7 @@ var (
 		[2]string{"application_endpoint", "ApplicationEndpoint"},
 		[2]string{"external_pstn", "ExternalPstn"},
 		[2]string{"shared_voicemail", "SharedVoicemail"},
+		[2]string{"voice_app", "ConfigurationEndpoint"},
 	)
 )
 
