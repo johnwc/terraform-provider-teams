@@ -93,7 +93,7 @@ Optional:
 - `announcement` (String) Text-to-speech announcement. For announcement, set this or announcement_audio_file_id.
 - `announcement_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the announcement. For announcement, set this or announcement.
 - `target_id` (String) Transfer target: a tel: number, a user object id or a resource account object id. Required for transfer.
-- `target_type` (String) Transfer target type: user, application_endpoint, external_pstn or shared_voicemail. Required for transfer.
+- `target_type` (String) Transfer target type: user, application_endpoint, external_pstn, shared_voicemail, or voice_app (the id of a teams_call_queue or teams_auto_attendant). Required for transfer.
 
 
 
@@ -125,7 +125,7 @@ Optional:
 - `announcement` (String) Text-to-speech announcement. For announcement, set this or announcement_audio_file_id.
 - `announcement_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the announcement. For announcement, set this or announcement.
 - `target_id` (String) Transfer target: a tel: number, a user object id or a resource account object id. Required for transfer.
-- `target_type` (String) Transfer target type: user, application_endpoint, external_pstn or shared_voicemail. Required for transfer.
+- `target_type` (String) Transfer target type: user, application_endpoint, external_pstn, shared_voicemail, or voice_app (the id of a teams_call_queue or teams_auto_attendant). Required for transfer.
 
 
 
@@ -158,4 +158,4 @@ Optional:
 - `announcement` (String) Text-to-speech announcement. For announcement, set this or announcement_audio_file_id.
 - `announcement_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the announcement. For announcement, set this or announcement.
 - `target_id` (String) Transfer target: a tel: number, a user object id or a resource account object id. Required for transfer.
-- `target_type` (String) Transfer target type: user, application_endpoint, external_pstn or shared_voicemail. Required for transfer.
+- `target_type` (String) Transfer target type: user, application_endpoint, external_pstn, shared_voicemail, or voice_app (the id of a teams_call_queue or teams_auto_attendant). Required for transfer.

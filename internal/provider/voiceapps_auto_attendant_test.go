@@ -60,7 +60,7 @@ func TestAutoAttendantEnumsRejectUnknown(t *testing.T) {
 		if _, ok := e.toWire("bogus"); ok {
 			t.Error("toWire(bogus) should fail")
 		}
-		for _, in := range []any{float64(0), float64(1), 1, "Bogus", "ConfigurationEndpoint", nil, true} {
+		for _, in := range []any{float64(0), float64(1), 1, "Bogus", "Unknown", nil, true} {
 			if got, ok := e.fromWireWord(in); ok {
 				t.Errorf("fromWireWord(%#v) = %q; want failure", in, got)
 			}
@@ -131,7 +131,7 @@ func testFullFlows() aaFlows {
 				ID:         types.StringUnknown(),
 				ScheduleID: types.StringValue("sched-ny"),
 				Greeting:   types.StringNull(),
-				MenuPrompt: types.StringNull(),
+				MenuPrompt: types.StringValue("Press 1 for our holiday hours."),
 				MenuOption: []aaMenuOptionModel{testOption("1", "announcement", "", "", "Happy new year")},
 			},
 		},
@@ -206,7 +206,7 @@ func TestAutoAttendantBodyFull(t *testing.T) {
 				"Greetings": []any{},
 				"Menu": map[string]any{
 					"Name":        "tf main holiday 2 menu",
-					"Prompts":     []any{},
+					"Prompts":     []any{tts("Press 1 for our holiday hours.")},
 					"MenuOptions": []any{map[string]any{"Action": "Announcement", "DtmfResponse": "Tone1", "Prompt": tts("Happy new year")}},
 				},
 			},
@@ -471,7 +471,7 @@ func TestAutoAttendantModelFromObjectUnknownEnums(t *testing.T) {
 		}, "Unexpected DefaultCallFlow.Menu.MenuOptions[1].DtmfResponse value"},
 		{"target type", func(o map[string]any) {
 			opt := o["DefaultCallFlow"].(map[string]any)["Menu"].(map[string]any)["MenuOptions"].([]any)[0].(map[string]any)
-			opt["CallTarget"] = map[string]any{"Id": "x", "Type": "ConfigurationEndpoint"}
+			opt["CallTarget"] = map[string]any{"Id": "x", "Type": "Bogus"}
 		}, "Unexpected DefaultCallFlow.Menu.MenuOptions[0].CallTarget.Type value"},
 		{"voice", func(o map[string]any) { o["VoiceId"] = "Robot" }, "Unexpected VoiceId value"},
 		{"greeting type", func(o map[string]any) {

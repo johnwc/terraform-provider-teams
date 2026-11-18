@@ -47,7 +47,7 @@ func TestAccAutoAttendant_basic(t *testing.T) {
 			},
 			{ // in-place update
 				Config: testAccAutoAttendantConfig(name, "Press 1 for sales, 2 for support or 3 for billing.",
-					`{ key = "3", action = "transfer", target_id = "tel:+18005550103", target_type = "external_pstn" },
+					`{ key = "3", action = "transfer", target_id = teams_call_queue.billing.id, target_type = "voice_app" },
     { key = "4", action = "announcement", announcement = "Our hours are 8 to 5." },`),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr(rn, "default_call_flow.menu_prompt", "Press 1 for sales, 2 for support or 3 for billing."),
@@ -56,7 +56,8 @@ func TestAccAutoAttendant_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(rn, "default_call_flow.menu_option.3.announcement", "Our hours are 8 to 5."),
 					resource.TestCheckResourceAttr(rn, "default_call_flow.menu_option.2.key", "3"),
 					resource.TestCheckResourceAttr(rn, "default_call_flow.menu_option.2.action", "transfer"),
-					resource.TestCheckResourceAttr(rn, "default_call_flow.menu_option.2.target_id", "tel:+18005550103"),
+					resource.TestCheckResourceAttr(rn, "default_call_flow.menu_option.2.target_type", "voice_app"),
+					resource.TestCheckResourceAttrPair(rn, "default_call_flow.menu_option.2.target_id", "teams_call_queue.billing", "id"),
 				),
 			},
 			{ // import by id
@@ -70,6 +71,10 @@ func TestAccAutoAttendant_basic(t *testing.T) {
 
 func testAccAutoAttendantConfig(name, menuPrompt, extraOption string) string {
 	return fmt.Sprintf(`
+resource "teams_call_queue" "billing" {
+  name = "%[1]s-billing"
+}
+
 resource "teams_schedule" "hours" {
   name = "%[1]s-hours"
   weekly {
