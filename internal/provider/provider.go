@@ -97,7 +97,7 @@ func (p *teamsProvider) Configure(ctx context.Context, req provider.ConfigureReq
 
 func (p *teamsProvider) Resources(_ context.Context) []func() resource.Resource {
 	return append(generatedResources(), NewCallQueueResource, NewScheduleResource, NewAutoAttendantResource,
-		NewResourceAccountResource, NewResourceAccountAssociationResource, NewPhoneNumberAssignmentResource)
+		NewResourceAccountResource, NewResourceAccountAssociationResource, NewPhoneNumberAssignmentResource, NewAudioFileResource)
 }
 
 func (p *teamsProvider) DataSources(_ context.Context) []func() datasource.DataSource {

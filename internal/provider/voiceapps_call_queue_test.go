@@ -507,9 +507,191 @@ func TestCreateCallQueueBody_AgentsBecomeUsers(t *testing.T) {
 	}
 }
 
+func TestCallQueueBodyAudioFiles(t *testing.T) {
+	t.Run("defaults", func(t *testing.T) {
+		m := testCallQueueModel()
+		body, diags := callQueueBody(&m)
+		if diags.HasError() {
+			t.Fatalf("diagnostics: %v", diags)
+		}
+		for key, want := range map[string]any{
+			"UseDefaultMusicOnHold":                  true,
+			"MusicOnHoldAudioFileId":                 nil,
+			"WelcomeMusicAudioFileId":                nil,
+			"OverflowSharedVoicemailAudioFilePrompt": nil,
+			"TimeoutSharedVoicemailAudioFilePrompt":  nil,
+			"NoAgentSharedVoicemailAudioFilePrompt":  nil,
+		} {
+			if got, ok := body[key]; !ok || !reflect.DeepEqual(got, want) {
+				t.Errorf("body[%s] = %#v (present %v); want %#v", key, got, ok, want)
+			}
+		}
+	})
+	t.Run("audio files", func(t *testing.T) {
+		m := testCallQueueModel()
+		m.WelcomeAudioFileID = types.StringValue("file-welcome")
+		m.MusicOnHoldAudioFileID = types.StringValue("file-music")
+		m.OverflowAction = types.StringValue("shared_voicemail")
+		m.OverflowActionTarget = types.StringValue("g")
+		m.OverflowSharedVoicemailAudioFileID = types.StringValue("file-vm")
+		m.TimeoutAction = types.StringValue("forward")
+		m.TimeoutActionTarget = types.StringValue("tel:+18005550100")
+		m.TimeoutSharedVoicemailAudioFileID = types.StringValue("ignored")
+		body, diags := callQueueBody(&m)
+		if diags.HasError() {
+			t.Fatalf("diagnostics: %v", diags)
+		}
+		for key, want := range map[string]any{
+			"UseDefaultMusicOnHold":                     false,
+			"MusicOnHoldAudioFileId":                    "file-music",
+			"WelcomeMusicAudioFileId":                   "file-welcome",
+			"WelcomeTextToSpeechPrompt":                 nil,
+			"OverflowSharedVoicemailAudioFilePrompt":    "file-vm",
+			"OverflowSharedVoicemailTextToSpeechPrompt": nil,
+			"TimeoutSharedVoicemailAudioFilePrompt":     nil,
+		} {
+			if got, ok := body[key]; !ok || !reflect.DeepEqual(got, want) {
+				t.Errorf("body[%s] = %#v (present %v); want %#v", key, got, ok, want)
+			}
+		}
+	})
+}
+
+func TestCallQueueModelFromObjectAudioFiles(t *testing.T) {
+	obj := map[string]any{
+		"Identity":                               "q",
+		"UseDefaultMusicOnHold":                  false,
+		"MusicOnHoldAudioFileId":                 nil,
+		"MusicOnHoldResourceId":                  "FILE-MUSIC",
+		"WelcomeMusicAudioFileId":                "file-welcome",
+		"OverflowSharedVoicemailAudioFilePrompt": "file-vm",
+		"TimeoutSharedVoicemailAudioFilePrompt":  nil,
+	}
+	m := testCallQueueModel()
+	m.MusicOnHoldAudioFileID = types.StringValue("file-music")
+	if diags := callQueueModelFromObject(obj, &m); diags.HasError() {
+		t.Fatalf("diagnostics: %v", diags)
+	}
+	strs := []struct {
+		name      string
+		got, want types.String
+	}{
+		{"music_on_hold_audio_file_id keeps prior case", m.MusicOnHoldAudioFileID, types.StringValue("file-music")},
+		{"welcome_audio_file_id from WelcomeMusicAudioFileId", m.WelcomeAudioFileID, types.StringValue("file-welcome")},
+		{"overflow_shared_voicemail_audio_file_id", m.OverflowSharedVoicemailAudioFileID, types.StringValue("file-vm")},
+		{"timeout_shared_voicemail_audio_file_id", m.TimeoutSharedVoicemailAudioFileID, types.StringNull()},
+		{"no_agent_shared_voicemail_audio_file_id", m.NoAgentSharedVoicemailAudioFileID, types.StringNull()},
+	}
+	for _, s := range strs {
+		if !s.got.Equal(s.want) {
+			t.Errorf("%s = %s; want %s", s.name, s.got, s.want)
+		}
+	}
+
+	obj["WelcomeMusicResourceId"] = "file-welcome-2"
+	obj["UseDefaultMusicOnHold"] = true
+	m = testCallQueueModel()
+	if diags := callQueueModelFromObject(obj, &m); diags.HasError() {
+		t.Fatalf("diagnostics: %v", diags)
+	}
+	if !m.WelcomeAudioFileID.Equal(types.StringValue("file-welcome-2")) {
+		t.Errorf("welcome_audio_file_id = %s; want WelcomeMusicResourceId", m.WelcomeAudioFileID)
+	}
+	if !m.MusicOnHoldAudioFileID.IsNull() {
+		t.Errorf("music_on_hold_audio_file_id = %s; want null with the default music", m.MusicOnHoldAudioFileID)
+	}
+}
+
+func TestCallQueueUpdateBodyAudioResourceIDs(t *testing.T) {
+	plan := testCallQueueModel()
+	plan.MusicOnHoldAudioFileID = types.StringValue("file-new")
+	body, diags := callQueueBody(&plan)
+	if diags.HasError() {
+		t.Fatalf("diagnostics: %v", diags)
+	}
+	cur := map[string]any{"Identity": "q1", "MusicOnHoldResourceId": "file-old", "UseDefaultMusicOnHold": false}
+	state := testCallQueueModel()
+	got := callQueueUpdateBody(cur, body, &plan, &state)
+	if got["MusicOnHoldResourceId"] != "file-new" || got["MusicOnHoldAudioFileId"] != "file-new" {
+		t.Errorf("music ids = %v / %v; want file-new", got["MusicOnHoldResourceId"], got["MusicOnHoldAudioFileId"])
+	}
+	if _, ok := got["WelcomeMusicResourceId"]; ok {
+		t.Error("WelcomeMusicResourceId should only be written when stored")
+	}
+
+	plan.MusicOnHoldAudioFileID = types.StringNull()
+	body, _ = callQueueBody(&plan)
+	got = callQueueUpdateBody(cur, body, &plan, &state)
+	if got["UseDefaultMusicOnHold"] != true || got["MusicOnHoldResourceId"] != nil {
+		t.Errorf("default music = %v / %v; want true / nil", got["UseDefaultMusicOnHold"], got["MusicOnHoldResourceId"])
+	}
+}
+
+func TestValidateCallQueueAudio(t *testing.T) {
+	cases := []struct {
+		name    string
+		mutate  func(*callQueueModel)
+		wantErr bool
+	}{
+		{"shared voicemail with audio", func(m *callQueueModel) {
+			m.OverflowAction = types.StringValue("shared_voicemail")
+			m.OverflowActionTarget = types.StringValue("g")
+			m.OverflowSharedVoicemailAudioFileID = types.StringValue("file-vm")
+		}, false},
+		{"shared voicemail with text and audio", func(m *callQueueModel) {
+			m.OverflowAction = types.StringValue("shared_voicemail")
+			m.OverflowActionTarget = types.StringValue("g")
+			m.OverflowSharedVoicemailAudioFileID = types.StringValue("file-vm")
+			m.OverflowSharedVoicemailTextToSpeechPrompt = types.StringValue("x")
+		}, true},
+		{"shared voicemail with unknown audio", func(m *callQueueModel) {
+			m.TimeoutAction = types.StringValue("shared_voicemail")
+			m.TimeoutActionTarget = types.StringValue("g")
+			m.TimeoutSharedVoicemailAudioFileID = types.StringUnknown()
+		}, false},
+		{"audio without shared voicemail", func(m *callQueueModel) {
+			m.NoAgentSharedVoicemailAudioFileID = types.StringValue("file-vm")
+		}, true},
+		{"welcome text and audio", func(m *callQueueModel) {
+			m.WelcomeTextToSpeechPrompt = types.StringValue("Hi")
+			m.WelcomeAudioFileID = types.StringValue("file-welcome")
+		}, true},
+		{"welcome audio and music", func(m *callQueueModel) {
+			m.WelcomeAudioFileID = types.StringValue("file-welcome")
+			m.MusicOnHoldAudioFileID = types.StringValue("file-music")
+		}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := testCallQueueModel()
+			tc.mutate(&m)
+			if got := validateCallQueue(&m).HasError(); got != tc.wantErr {
+				t.Errorf("HasError = %v; want %v", got, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestCreateCallQueueBody_NoAgents(t *testing.T) {
 	out := createCallQueueBody(map[string]any{"Name": "q"})
 	if _, ok := out["Users"]; ok {
 		t.Fatalf("Users should be absent when no agents are set: %v", out)
+	}
+}
+
+func TestSameIDs(t *testing.T) {
+	cases := []struct {
+		a, b []string
+		want bool
+	}{
+		{nil, nil, true},
+		{[]string{"A", "b"}, []string{"B", "a"}, true},
+		{[]string{"a"}, nil, false},
+		{[]string{"a", "a"}, []string{"a", "b"}, false},
+	}
+	for _, tc := range cases {
+		if got := sameIDs(tc.a, tc.b); got != tc.want {
+			t.Errorf("sameIDs(%v, %v) = %v; want %v", tc.a, tc.b, got, tc.want)
+		}
 	}
 }

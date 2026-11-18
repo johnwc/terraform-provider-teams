@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -17,6 +18,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/terraprovider/go-teams/teamsapi"
 
 	"github.com/terraprovider/terraform-provider-teams/internal/clients"
 )
@@ -43,6 +45,8 @@ type callQueueModel struct {
 	AllowOptOut                                types.Bool   `tfsdk:"allow_opt_out"`
 	AgentAlertTime                             types.Int64  `tfsdk:"agent_alert_time"`
 	WelcomeTextToSpeechPrompt                  types.String `tfsdk:"welcome_text_to_speech_prompt"`
+	WelcomeAudioFileID                         types.String `tfsdk:"welcome_audio_file_id"`
+	MusicOnHoldAudioFileID                     types.String `tfsdk:"music_on_hold_audio_file_id"`
 	Users                                      types.List   `tfsdk:"users"`
 	DistributionLists                          types.List   `tfsdk:"distribution_lists"`
 	AuthorizedUsers                            types.List   `tfsdk:"authorized_users"`
@@ -50,17 +54,20 @@ type callQueueModel struct {
 	OverflowAction                             types.String `tfsdk:"overflow_action"`
 	OverflowActionTarget                       types.String `tfsdk:"overflow_action_target"`
 	OverflowSharedVoicemailTextToSpeechPrompt  types.String `tfsdk:"overflow_shared_voicemail_text_to_speech_prompt"`
+	OverflowSharedVoicemailAudioFileID         types.String `tfsdk:"overflow_shared_voicemail_audio_file_id"`
 	EnableOverflowSharedVoicemailTranscription types.Bool   `tfsdk:"enable_overflow_shared_voicemail_transcription"`
 	OverflowDisconnectTextToSpeechPrompt       types.String `tfsdk:"overflow_disconnect_text_to_speech_prompt"`
 	TimeoutThreshold                           types.Int64  `tfsdk:"timeout_threshold"`
 	TimeoutAction                              types.String `tfsdk:"timeout_action"`
 	TimeoutActionTarget                        types.String `tfsdk:"timeout_action_target"`
 	TimeoutSharedVoicemailTextToSpeechPrompt   types.String `tfsdk:"timeout_shared_voicemail_text_to_speech_prompt"`
+	TimeoutSharedVoicemailAudioFileID          types.String `tfsdk:"timeout_shared_voicemail_audio_file_id"`
 	EnableTimeoutSharedVoicemailTranscription  types.Bool   `tfsdk:"enable_timeout_shared_voicemail_transcription"`
 	TimeoutDisconnectTextToSpeechPrompt        types.String `tfsdk:"timeout_disconnect_text_to_speech_prompt"`
 	NoAgentAction                              types.String `tfsdk:"no_agent_action"`
 	NoAgentActionTarget                        types.String `tfsdk:"no_agent_action_target"`
 	NoAgentSharedVoicemailTextToSpeechPrompt   types.String `tfsdk:"no_agent_shared_voicemail_text_to_speech_prompt"`
+	NoAgentSharedVoicemailAudioFileID          types.String `tfsdk:"no_agent_shared_voicemail_audio_file_id"`
 	EnableNoAgentSharedVoicemailTranscription  types.Bool   `tfsdk:"enable_no_agent_shared_voicemail_transcription"`
 	NoAgentDisconnectTextToSpeechPrompt        types.String `tfsdk:"no_agent_disconnect_text_to_speech_prompt"`
 	ApplicationInstances                       types.List   `tfsdk:"application_instances"`
@@ -76,6 +83,7 @@ type callQueueBranch struct {
 	action        *types.String
 	target        *types.String
 	svPrompt      *types.String
+	svAudio       *types.String
 	transcription *types.Bool
 	discPrompt    *types.String
 }
@@ -85,16 +93,19 @@ func (m *callQueueModel) branches() []callQueueBranch {
 		{
 			wire: "Overflow", attr: "overflow", enum: overflowActions, defaultAction: "disconnect_with_busy",
 			action: &m.OverflowAction, target: &m.OverflowActionTarget, svPrompt: &m.OverflowSharedVoicemailTextToSpeechPrompt,
+			svAudio:       &m.OverflowSharedVoicemailAudioFileID,
 			transcription: &m.EnableOverflowSharedVoicemailTranscription, discPrompt: &m.OverflowDisconnectTextToSpeechPrompt,
 		},
 		{
 			wire: "Timeout", attr: "timeout", enum: timeoutActions, defaultAction: "disconnect",
 			action: &m.TimeoutAction, target: &m.TimeoutActionTarget, svPrompt: &m.TimeoutSharedVoicemailTextToSpeechPrompt,
+			svAudio:       &m.TimeoutSharedVoicemailAudioFileID,
 			transcription: &m.EnableTimeoutSharedVoicemailTranscription, discPrompt: &m.TimeoutDisconnectTextToSpeechPrompt,
 		},
 		{
 			wire: "NoAgent", attr: "no_agent", enum: noAgentActions, defaultAction: "queue",
 			action: &m.NoAgentAction, target: &m.NoAgentActionTarget, svPrompt: &m.NoAgentSharedVoicemailTextToSpeechPrompt,
+			svAudio:       &m.NoAgentSharedVoicemailAudioFileID,
 			transcription: &m.EnableNoAgentSharedVoicemailTranscription, discPrompt: &m.NoAgentDisconnectTextToSpeechPrompt,
 		},
 	}
@@ -122,7 +133,9 @@ func (r *callQueueResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 		"conference_mode":               schema.BoolAttribute{Optional: true, Computed: true, Default: booldefault.StaticBool(false), Description: "Connect calls to agents using conference mode."},
 		"allow_opt_out":                 schema.BoolAttribute{Optional: true, Computed: true, Default: booldefault.StaticBool(false), Description: "Allow agents to opt out of taking calls."},
 		"agent_alert_time":              schema.Int64Attribute{Optional: true, Computed: true, Default: int64default.StaticInt64(30), Description: "Seconds a call rings an agent before moving on (15-180).", Validators: []validator.Int64{int64Range{lo: 15, hi: 180}}},
-		"welcome_text_to_speech_prompt": schema.StringAttribute{Optional: true, Description: "Text-to-speech greeting played to callers."},
+		"welcome_text_to_speech_prompt": schema.StringAttribute{Optional: true, Description: "Text-to-speech greeting played to callers. Conflicts with welcome_audio_file_id."},
+		"welcome_audio_file_id":         schema.StringAttribute{Optional: true, Description: "Id of a teams_audio_file (usage call_queue) played as the greeting. Conflicts with welcome_text_to_speech_prompt."},
+		"music_on_hold_audio_file_id":   schema.StringAttribute{Optional: true, Description: "Id of a teams_audio_file (usage call_queue) played while callers wait. When unset, the default Teams music plays."},
 		"users":                         schema.ListAttribute{Optional: true, ElementType: types.StringType, Description: "Agent user object ids."},
 		"distribution_lists":            schema.ListAttribute{Optional: true, ElementType: types.StringType, Description: "Microsoft 365 group ids whose members are agents."},
 		"authorized_users":              schema.ListAttribute{Optional: true, ElementType: types.StringType, Description: "User object ids allowed to manage the queue."},
@@ -136,7 +149,8 @@ func (r *callQueueResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 	}
 	for _, b := range []struct{ attr, label string }{{"overflow", "overflow"}, {"timeout", "timeout"}, {"no_agent", "no agent"}} {
 		attrs[b.attr+"_action_target"] = schema.StringAttribute{Optional: true, Description: fmt.Sprintf("Target of the %s action: a tel: number, a user object id or a Microsoft 365 group id. Required for forward, voicemail and shared_voicemail.", b.label)}
-		attrs[b.attr+"_shared_voicemail_text_to_speech_prompt"] = schema.StringAttribute{Optional: true, Description: fmt.Sprintf("Shared voicemail greeting for the %s action. Required when the action is shared_voicemail; must be unset otherwise.", b.label)}
+		attrs[b.attr+"_shared_voicemail_text_to_speech_prompt"] = schema.StringAttribute{Optional: true, Description: fmt.Sprintf("Text-to-speech shared voicemail greeting for the %s action. When the action is shared_voicemail, set this or %s_shared_voicemail_audio_file_id; must be unset otherwise.", b.label, b.attr)}
+		attrs[b.attr+"_shared_voicemail_audio_file_id"] = schema.StringAttribute{Optional: true, Description: fmt.Sprintf("Id of a teams_audio_file (usage call_queue) played as the shared voicemail greeting for the %s action. When the action is shared_voicemail, set this or %s_shared_voicemail_text_to_speech_prompt; must be unset otherwise.", b.label, b.attr)}
 		attrs["enable_"+b.attr+"_shared_voicemail_transcription"] = schema.BoolAttribute{Optional: true, Computed: true, Default: booldefault.StaticBool(false), Description: fmt.Sprintf("Transcribe %s shared voicemail.", b.label)}
 		attrs[b.attr+"_disconnect_text_to_speech_prompt"] = schema.StringAttribute{Optional: true, Description: fmt.Sprintf("Text-to-speech prompt played before the %s disconnect.", b.label)}
 	}
@@ -184,7 +198,7 @@ func (r *callQueueResource) Create(ctx context.Context, req resource.CreateReque
 		resp.Diagnostics.AddError("New-CsCallQueue failed", "the response did not include the call queue identity")
 		return
 	}
-	obj, err := getVoiceApp(ctx, r.client.API, callQueueKind, id)
+	obj, err := getCallQueueWithAgents(ctx, r.client.API, id, listStrings(plan.Users))
 	if err != nil {
 		resp.Diagnostics.AddError("Get-CsCallQueue failed", err.Error())
 		return
@@ -241,7 +255,7 @@ func (r *callQueueResource) Update(ctx context.Context, req resource.UpdateReque
 		resp.Diagnostics.AddError("Set-CsCallQueue failed", err.Error())
 		return
 	}
-	obj, err := getVoiceApp(ctx, r.client.API, callQueueKind, id)
+	obj, err := getCallQueueWithAgents(ctx, r.client.API, id, listStrings(plan.Users))
 	if err != nil {
 		resp.Diagnostics.AddError("Get-CsCallQueue failed", err.Error())
 		return
@@ -269,9 +283,18 @@ func (r *callQueueResource) ImportState(ctx context.Context, req resource.Import
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-// callQueueUpdateBody overlays body onto the stored object and empties each list that the plan unsets.
+// callQueueUpdateBody overlays body onto the stored object, sets the stored audio
+// resource ids to the written audio file ids and empties each list that the plan unsets.
 func callQueueUpdateBody(cur, body map[string]any, plan, state *callQueueModel) map[string]any {
 	merged := overlayObject(cur, body)
+	for resourceKey, fileKey := range map[string]string{
+		"MusicOnHoldResourceId":  "MusicOnHoldAudioFileId",
+		"WelcomeMusicResourceId": "WelcomeMusicAudioFileId",
+	} {
+		if _, ok := cur[resourceKey]; ok {
+			merged[resourceKey] = body[fileKey]
+		}
+	}
 	for _, l := range []struct {
 		key         string
 		plan, state types.List
@@ -314,14 +337,31 @@ func validateCallQueue(m *callQueueModel) diag.Diagnostics {
 			}
 		}
 		promptAttr := b.attr + "_shared_voicemail_text_to_speech_prompt"
-		if action == "shared_voicemail" && b.svPrompt.IsNull() {
-			diags.AddAttributeError(path.Root(promptAttr), "Invalid call queue configuration",
-				fmt.Sprintf("%s is required when %s_action is \"shared_voicemail\".", promptAttr, b.attr))
+		audioAttr := b.attr + "_shared_voicemail_audio_file_id"
+		if action == "shared_voicemail" {
+			if b.svPrompt.IsNull() && b.svAudio.IsNull() {
+				diags.AddAttributeError(path.Root(promptAttr), "Invalid call queue configuration",
+					fmt.Sprintf("one of %s or %s is required when %s_action is \"shared_voicemail\".", promptAttr, audioAttr, b.attr))
+			}
+			if isSet(*b.svPrompt) && isSet(*b.svAudio) {
+				diags.AddAttributeError(path.Root(audioAttr), "Invalid call queue configuration",
+					fmt.Sprintf("%s and %s cannot both be set.", promptAttr, audioAttr))
+			}
+		} else {
+			for _, a := range []struct {
+				name string
+				val  types.String
+			}{{promptAttr, *b.svPrompt}, {audioAttr, *b.svAudio}} {
+				if isSet(a.val) {
+					diags.AddAttributeError(path.Root(a.name), "Invalid call queue configuration",
+						fmt.Sprintf("%s must be unset unless %s_action is \"shared_voicemail\".", a.name, b.attr))
+				}
+			}
 		}
-		if action != "shared_voicemail" && !b.svPrompt.IsNull() && !b.svPrompt.IsUnknown() {
-			diags.AddAttributeError(path.Root(promptAttr), "Invalid call queue configuration",
-				fmt.Sprintf("%s must be unset unless %s_action is \"shared_voicemail\".", promptAttr, b.attr))
-		}
+	}
+	if isSet(m.WelcomeTextToSpeechPrompt) && isSet(m.WelcomeAudioFileID) {
+		diags.AddAttributeError(path.Root("welcome_audio_file_id"), "Invalid call queue configuration",
+			"welcome_text_to_speech_prompt and welcome_audio_file_id cannot both be set.")
 	}
 	return diags
 }
@@ -355,7 +395,8 @@ func callQueueBody(m *callQueueModel) (map[string]any, diag.Diagnostics) {
 	body := map[string]any{
 		"Name":                      m.Name.ValueString(),
 		"LanguageId":                m.LanguageID.ValueString(),
-		"UseDefaultMusicOnHold":     true,
+		"UseDefaultMusicOnHold":     !isSet(m.MusicOnHoldAudioFileID),
+		"MusicOnHoldAudioFileId":    optStringWire(m.MusicOnHoldAudioFileID),
 		"PresenceAwareRouting":      m.PresenceBasedRouting.ValueBool(),
 		"ConferenceMode":            m.ConferenceMode.ValueBool(),
 		"AllowOptOut":               m.AllowOptOut.ValueBool(),
@@ -363,6 +404,7 @@ func callQueueBody(m *callQueueModel) (map[string]any, diag.Diagnostics) {
 		"OverflowThreshold":         m.OverflowThreshold.ValueInt64(),
 		"TimeoutThreshold":          m.TimeoutThreshold.ValueInt64(),
 		"WelcomeTextToSpeechPrompt": optStringWire(m.WelcomeTextToSpeechPrompt),
+		"WelcomeMusicAudioFileId":   optStringWire(m.WelcomeAudioFileID),
 	}
 	if w, ok := routingMethods.toWire(m.RoutingMethod.ValueString()); ok {
 		body["RoutingMethod"] = w
@@ -382,8 +424,10 @@ func callQueueBody(m *callQueueModel) (map[string]any, diag.Diagnostics) {
 		body["Enable"+b.wire+"SharedVoicemailTranscription"] = b.transcription.ValueBool()
 		if action == "shared_voicemail" {
 			body[b.wire+"SharedVoicemailTextToSpeechPrompt"] = optStringWire(*b.svPrompt)
+			body[b.wire+"SharedVoicemailAudioFilePrompt"] = optStringWire(*b.svAudio)
 		} else {
 			body[b.wire+"SharedVoicemailTextToSpeechPrompt"] = nil
+			body[b.wire+"SharedVoicemailAudioFilePrompt"] = nil
 		}
 	}
 	if ids := listStrings(m.Users); ids != nil {
@@ -420,10 +464,21 @@ func callQueueModelFromObject(obj map[string]any, m *callQueueModel) diag.Diagno
 	readInt64(obj, "OverflowThreshold", &m.OverflowThreshold)
 	readInt64(obj, "TimeoutThreshold", &m.TimeoutThreshold)
 	m.WelcomeTextToSpeechPrompt = optStringValue(obj["WelcomeTextToSpeechPrompt"], m.WelcomeTextToSpeechPrompt)
+	welcome := optIDValue(obj["WelcomeMusicResourceId"], m.WelcomeAudioFileID)
+	if welcome.IsNull() {
+		welcome = optIDValue(obj["WelcomeMusicAudioFileId"], m.WelcomeAudioFileID)
+	}
+	m.WelcomeAudioFileID = welcome
+	if useDefault, ok := obj["UseDefaultMusicOnHold"].(bool); ok && useDefault {
+		m.MusicOnHoldAudioFileID = types.StringNull()
+	} else {
+		m.MusicOnHoldAudioFileID = optIDValue(obj["MusicOnHoldResourceId"], m.MusicOnHoldAudioFileID)
+	}
 	for _, b := range m.branches() {
 		diags.Append(readEnum(obj, b.wire+"Action", b.wire+"Action", b.enum, false, b.action)...)
 		*b.target = callQueueTargetValue(obj[b.wire+"ActionTarget"], *b.target)
 		*b.svPrompt = optStringValue(obj[b.wire+"SharedVoicemailTextToSpeechPrompt"], *b.svPrompt)
+		*b.svAudio = optIDValue(obj[b.wire+"SharedVoicemailAudioFilePrompt"], *b.svAudio)
 		*b.discPrompt = optStringValue(obj[b.wire+"DisconnectTextToSpeechPrompt"], *b.discPrompt)
 		readBool(obj, "Enable"+b.wire+"SharedVoicemailTranscription", b.transcription)
 	}
@@ -486,6 +541,46 @@ func keepPriorOrder(ids []string, prior types.List) []string {
 }
 
 // callQueueAgentIDs returns the agent ids, falling back to Users when Agents is empty.
+// getCallQueueWithAgents reads a call queue, re-reading until its agents match the expected ids or the wait runs out.
+func getCallQueueWithAgents(ctx context.Context, api *teamsapi.Client, id string, want []string) (map[string]any, error) {
+	deadline := time.Now().Add(agentReadWait.timeout)
+	for {
+		obj, err := getVoiceApp(ctx, api, callQueueKind, id)
+		if err != nil || sameIDs(callQueueAgentIDs(obj), want) || time.Now().After(deadline) {
+			return obj, err
+		}
+		select {
+		case <-ctx.Done():
+			return obj, nil
+		case <-time.After(agentReadWait.interval):
+		}
+	}
+}
+
+// agentReadWait bounds how long a write waits for the queue's agents to read back.
+var agentReadWait = struct {
+	timeout, interval time.Duration
+}{timeout: 30 * time.Second, interval: 2 * time.Second}
+
+// sameIDs reports whether two id lists hold the same ids, ignoring order and case.
+func sameIDs(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	seen := map[string]int{}
+	for _, x := range a {
+		seen[strings.ToLower(x)]++
+	}
+	for _, x := range b {
+		k := strings.ToLower(x)
+		if seen[k] == 0 {
+			return false
+		}
+		seen[k]--
+	}
+	return true
+}
+
 func callQueueAgentIDs(obj map[string]any) []string {
 	if ids := agentIDs(obj["Agents"]); len(ids) > 0 {
 		return ids

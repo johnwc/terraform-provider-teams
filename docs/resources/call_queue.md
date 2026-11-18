@@ -55,24 +55,29 @@ resource "teams_call_queue" "support" {
 - `enable_overflow_shared_voicemail_transcription` (Boolean) Transcribe overflow shared voicemail.
 - `enable_timeout_shared_voicemail_transcription` (Boolean) Transcribe timeout shared voicemail.
 - `language_id` (String) Language used for text-to-speech prompts.
+- `music_on_hold_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played while callers wait. When unset, the default Teams music plays.
 - `no_agent_action` (String) Action when no agents are available: queue, disconnect, forward, voicemail or shared_voicemail.
 - `no_agent_action_target` (String) Target of the no agent action: a tel: number, a user object id or a Microsoft 365 group id. Required for forward, voicemail and shared_voicemail.
 - `no_agent_disconnect_text_to_speech_prompt` (String) Text-to-speech prompt played before the no agent disconnect.
-- `no_agent_shared_voicemail_text_to_speech_prompt` (String) Shared voicemail greeting for the no agent action. Required when the action is shared_voicemail; must be unset otherwise.
+- `no_agent_shared_voicemail_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played as the shared voicemail greeting for the no agent action. When the action is shared_voicemail, set this or no_agent_shared_voicemail_text_to_speech_prompt; must be unset otherwise.
+- `no_agent_shared_voicemail_text_to_speech_prompt` (String) Text-to-speech shared voicemail greeting for the no agent action. When the action is shared_voicemail, set this or no_agent_shared_voicemail_audio_file_id; must be unset otherwise.
 - `overflow_action` (String) Overflow action: disconnect_with_busy, forward, voicemail or shared_voicemail.
 - `overflow_action_target` (String) Target of the overflow action: a tel: number, a user object id or a Microsoft 365 group id. Required for forward, voicemail and shared_voicemail.
 - `overflow_disconnect_text_to_speech_prompt` (String) Text-to-speech prompt played before the overflow disconnect.
-- `overflow_shared_voicemail_text_to_speech_prompt` (String) Shared voicemail greeting for the overflow action. Required when the action is shared_voicemail; must be unset otherwise.
+- `overflow_shared_voicemail_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played as the shared voicemail greeting for the overflow action. When the action is shared_voicemail, set this or overflow_shared_voicemail_text_to_speech_prompt; must be unset otherwise.
+- `overflow_shared_voicemail_text_to_speech_prompt` (String) Text-to-speech shared voicemail greeting for the overflow action. When the action is shared_voicemail, set this or overflow_shared_voicemail_audio_file_id; must be unset otherwise.
 - `overflow_threshold` (Number) Number of waiting calls that triggers overflow (0-200).
 - `presence_based_routing` (Boolean) Route only to agents whose presence is available. Not allowed with longest_idle.
 - `routing_method` (String) Agent routing method: attendant, serial, round_robin or longest_idle.
 - `timeout_action` (String) Timeout action: disconnect, forward, voicemail or shared_voicemail.
 - `timeout_action_target` (String) Target of the timeout action: a tel: number, a user object id or a Microsoft 365 group id. Required for forward, voicemail and shared_voicemail.
 - `timeout_disconnect_text_to_speech_prompt` (String) Text-to-speech prompt played before the timeout disconnect.
-- `timeout_shared_voicemail_text_to_speech_prompt` (String) Shared voicemail greeting for the timeout action. Required when the action is shared_voicemail; must be unset otherwise.
+- `timeout_shared_voicemail_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played as the shared voicemail greeting for the timeout action. When the action is shared_voicemail, set this or timeout_shared_voicemail_text_to_speech_prompt; must be unset otherwise.
+- `timeout_shared_voicemail_text_to_speech_prompt` (String) Text-to-speech shared voicemail greeting for the timeout action. When the action is shared_voicemail, set this or timeout_shared_voicemail_audio_file_id; must be unset otherwise.
 - `timeout_threshold` (Number) Seconds a call waits before timeout (0-2700).
 - `users` (List of String) Agent user object ids.
-- `welcome_text_to_speech_prompt` (String) Text-to-speech greeting played to callers.
+- `welcome_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played as the greeting. Conflicts with welcome_text_to_speech_prompt.
+- `welcome_text_to_speech_prompt` (String) Text-to-speech greeting played to callers. Conflicts with welcome_audio_file_id.
 
 ### Read-Only
 

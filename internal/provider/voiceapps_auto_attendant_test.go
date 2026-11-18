@@ -76,7 +76,10 @@ func testOption(key, action, targetID, targetType, announcement string) aaMenuOp
 		}
 		return types.StringValue(v)
 	}
-	return aaMenuOptionModel{Key: s(key), Action: s(action), TargetID: s(targetID), TargetType: s(targetType), Announcement: s(announcement)}
+	return aaMenuOptionModel{
+		Key: s(key), Action: s(action), TargetID: s(targetID), TargetType: s(targetType),
+		Announcement: s(announcement), AnnouncementAudioFileID: types.StringNull(),
+	}
 }
 
 // testAutoAttendantModel returns a model with the schema defaults applied and the given call flows.
@@ -472,8 +475,15 @@ func TestAutoAttendantModelFromObjectUnknownEnums(t *testing.T) {
 		}, "Unexpected DefaultCallFlow.Menu.MenuOptions[0].CallTarget.Type value"},
 		{"voice", func(o map[string]any) { o["VoiceId"] = "Robot" }, "Unexpected VoiceId value"},
 		{"greeting type", func(o map[string]any) {
-			o["DefaultCallFlow"].(map[string]any)["Greetings"] = []any{map[string]any{"ActiveType": "AudioFile"}}
+			o["DefaultCallFlow"].(map[string]any)["Greetings"] = []any{map[string]any{"ActiveType": "Bogus"}}
 		}, "Unexpected DefaultCallFlow.Greetings.ActiveType value"},
+		{"audio greeting without id", func(o map[string]any) {
+			o["DefaultCallFlow"].(map[string]any)["Greetings"] = []any{map[string]any{"ActiveType": "AudioFile"}}
+		}, "Unexpected DefaultCallFlow.Greetings.AudioFilePrompt value"},
+		{"announcement prompt type", func(o map[string]any) {
+			opt := o["DefaultCallFlow"].(map[string]any)["Menu"].(map[string]any)["MenuOptions"].([]any)[0].(map[string]any)
+			opt["Prompt"] = map[string]any{"ActiveType": "Bogus"}
+		}, "Unexpected DefaultCallFlow.Menu.MenuOptions[0].Prompt.ActiveType value"},
 		{"association type", func(o map[string]any) {
 			o["CallHandlingAssociations"].([]any)[0].(map[string]any)["Type"] = "Unknown"
 		}, "Unexpected CallHandlingAssociations[2].Type value"},
@@ -656,5 +666,193 @@ func TestIsAutoAttendantGone(t *testing.T) {
 	}
 	if isAutoAttendantGone(&teamsapi.APIError{Status: 400, Message: "bad request"}) || isAutoAttendantGone(nil) {
 		t.Error("400 and nil should not be gone")
+	}
+}
+
+func audioPrompt(id string) map[string]any {
+	return map[string]any{"ActiveType": "AudioFile", "AudioFilePrompt": map[string]any{"Id": id}}
+}
+
+// testAudioFlows is a default flow whose greeting, menu prompt and key 2 announcement are audio files.
+func testAudioFlows() aaFlows {
+	announce := testOption("2", "announcement", "", "", "")
+	announce.AnnouncementAudioFileID = types.StringValue("file-hours")
+	return aaFlows{Default: aaCallFlowModel{
+		ID:                    types.StringValue("flow-default"),
+		Greeting:              types.StringNull(),
+		GreetingAudioFileID:   types.StringValue("file-greeting"),
+		MenuPrompt:            types.StringNull(),
+		MenuPromptAudioFileID: types.StringValue("file-menu"),
+		MenuOption: []aaMenuOptionModel{
+			testOption("1", "transfer", "tel:+18005550101", "external_pstn", ""),
+			announce,
+			testOption("3", "announcement", "", "", "Our hours are 8 to 5."),
+		},
+	}}
+}
+
+func TestAutoAttendantBodyAudioPrompts(t *testing.T) {
+	m := testAutoAttendantModel(t, testAudioFlows())
+	body, diags := autoAttendantBodyFromModel(context.Background(), &m)
+	if diags.HasError() {
+		t.Fatalf("diagnostics: %v", diags)
+	}
+	def := body["DefaultCallFlow"].(map[string]any)
+	if got, want := def["Greetings"], []any{audioPrompt("file-greeting")}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Greetings = %#v; want %#v", got, want)
+	}
+	menu := def["Menu"].(map[string]any)
+	if got, want := menu["Prompts"], []any{audioPrompt("file-menu")}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Prompts = %#v; want %#v", got, want)
+	}
+	opts := menu["MenuOptions"].([]any)
+	if _, ok := opts[0].(map[string]any)["Prompt"]; ok {
+		t.Errorf("transfer option has a Prompt: %#v", opts[0])
+	}
+	if got, want := opts[1].(map[string]any)["Prompt"], audioPrompt("file-hours"); !reflect.DeepEqual(got, want) {
+		t.Errorf("audio announcement Prompt = %#v; want %#v", got, want)
+	}
+	if got, want := opts[2].(map[string]any)["Prompt"], tts("Our hours are 8 to 5."); !reflect.DeepEqual(got, want) {
+		t.Errorf("text announcement Prompt = %#v; want %#v", got, want)
+	}
+}
+
+func TestAutoAttendantModelFromObjectAudioPrompts(t *testing.T) {
+	ctx := context.Background()
+	readBack := func(id, name string) map[string]any {
+		return map[string]any{"ActiveType": "AudioFile", "TextToSpeechPrompt": nil, "AudioFilePrompt": map[string]any{
+			"Id": id, "FileName": name, "DownloadUri": "https://example.invalid/" + id,
+		}}
+	}
+	obj := testCapturedAutoAttendant()
+	def := obj["DefaultCallFlow"].(map[string]any)
+	def["Greetings"] = []any{readBack("FILE-GREETING", "greeting.wav")}
+	menu := def["Menu"].(map[string]any)
+	menu["Prompts"] = []any{readBack("file-menu", "menu.wav")}
+	menu["MenuOptions"] = []any{
+		map[string]any{"Action": "Announcement", "DtmfResponse": "Tone2", "CallTarget": nil, "Prompt": readBack("file-hours", "hours.wav")},
+		map[string]any{"Action": "Announcement", "DtmfResponse": "Tone3", "CallTarget": nil, "Prompt": tts("Our hours are 8 to 5.")},
+	}
+
+	m := testAutoAttendantModel(t, testAudioFlows())
+	if diags := autoAttendantModelFromObject(ctx, obj, &m); diags.HasError() {
+		t.Fatalf("diagnostics: %v", diags)
+	}
+	f, _ := m.flows(ctx)
+	announce := testOption("2", "announcement", "", "", "")
+	announce.AnnouncementAudioFileID = types.StringValue("file-hours")
+	want := aaCallFlowModel{
+		ID:                    types.StringValue("flow-default"),
+		Greeting:              types.StringNull(),
+		GreetingAudioFileID:   types.StringValue("file-greeting"),
+		MenuPrompt:            types.StringNull(),
+		MenuPromptAudioFileID: types.StringValue("file-menu"),
+		MenuOption:            []aaMenuOptionModel{announce, testOption("3", "announcement", "", "", "Our hours are 8 to 5.")},
+	}
+	if !reflect.DeepEqual(f.Default, want) {
+		t.Errorf("default_call_flow = %+v\nwant %+v", f.Default, want)
+	}
+
+	t.Run("without prior", func(t *testing.T) {
+		m := testAutoAttendantModel(t, aaFlows{})
+		if diags := autoAttendantModelFromObject(ctx, obj, &m); diags.HasError() {
+			t.Fatalf("diagnostics: %v", diags)
+		}
+		f, _ := m.flows(ctx)
+		if !f.Default.GreetingAudioFileID.Equal(types.StringValue("FILE-GREETING")) || !f.Default.Greeting.IsNull() {
+			t.Errorf("greeting = %s / %s", f.Default.Greeting, f.Default.GreetingAudioFileID)
+		}
+	})
+}
+
+func TestValidateAutoAttendantAudio(t *testing.T) {
+	ctx := context.Background()
+	cases := []struct {
+		name    string
+		mutate  func(*aaFlows)
+		wantErr bool
+	}{
+		{"audio config", func(*aaFlows) {}, false},
+		{"greeting text and audio", func(f *aaFlows) { f.Default.Greeting = types.StringValue("Welcome") }, true},
+		{"menu prompt text and audio", func(f *aaFlows) { f.Default.MenuPrompt = types.StringValue("Press 2") }, true},
+		{"unknown greeting audio skipped", func(f *aaFlows) {
+			f.Default.Greeting = types.StringValue("Welcome")
+			f.Default.GreetingAudioFileID = types.StringUnknown()
+		}, false},
+		{"announcement text and audio", func(f *aaFlows) {
+			f.Default.MenuOption[1].Announcement = types.StringValue("x")
+		}, true},
+		{"announcement neither", func(f *aaFlows) {
+			f.Default.MenuOption[1].AnnouncementAudioFileID = types.StringNull()
+		}, true},
+		{"announcement audio unknown", func(f *aaFlows) {
+			f.Default.MenuOption[1].AnnouncementAudioFileID = types.StringUnknown()
+		}, false},
+		{"audio on transfer", func(f *aaFlows) {
+			f.Default.MenuOption[0].AnnouncementAudioFileID = types.StringValue("file-hours")
+		}, true},
+		{"after hours greeting text and audio", func(f *aaFlows) {
+			f.AfterHours = &aaScheduledCallFlowModel{
+				ID: types.StringValue("flow-ah"), ScheduleID: types.StringValue("s"),
+				Greeting: types.StringValue("Closed"), GreetingAudioFileID: types.StringValue("file-closed"),
+				MenuPrompt: types.StringNull(), MenuPromptAudioFileID: types.StringNull(),
+				MenuOption: []aaMenuOptionModel{testOption("automatic", "disconnect", "", "", "")},
+			}
+		}, true},
+		{"holiday menu prompt text and audio", func(f *aaFlows) {
+			f.Holidays = []aaScheduledCallFlowModel{{
+				ID: types.StringValue("flow-h"), ScheduleID: types.StringValue("s"),
+				Greeting: types.StringNull(), GreetingAudioFileID: types.StringNull(),
+				MenuPrompt: types.StringValue("x"), MenuPromptAudioFileID: types.StringValue("file-x"),
+				MenuOption: []aaMenuOptionModel{testOption("automatic", "disconnect", "", "", "")},
+			}}
+		}, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := testAudioFlows()
+			tc.mutate(&f)
+			m := testAutoAttendantModel(t, f)
+			if got := validateAutoAttendant(ctx, &m).HasError(); got != tc.wantErr {
+				t.Errorf("HasError = %v; want %v", got, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestAutoAttendantUpdateBodyAudioFileNames(t *testing.T) {
+	stored := func() map[string]any {
+		return map[string]any{
+			"Id": "aa-1",
+			"DefaultCallFlow": map[string]any{
+				"Id": "flow-default",
+				"Greetings": []any{map[string]any{"ActiveType": "AudioFile", "AudioFilePrompt": map[string]any{
+					"Id": "FILE-GREETING", "FileName": "greeting.wav", "DownloadUri": "https://example.invalid/g",
+				}}},
+			},
+		}
+	}
+	cur := stored()
+	body := map[string]any{
+		"DefaultCallFlow": map[string]any{
+			"Id":        "flow-default",
+			"Greetings": []any{audioPrompt("file-greeting")},
+			"Menu":      map[string]any{"Prompts": []any{audioPrompt("file-new")}},
+		},
+	}
+	got := autoAttendantUpdateBody(cur, body)
+	def := got["DefaultCallFlow"].(map[string]any)
+	wantGreeting := []any{map[string]any{"ActiveType": "AudioFile", "AudioFilePrompt": map[string]any{"Id": "file-greeting", "FileName": "greeting.wav"}}}
+	if !reflect.DeepEqual(def["Greetings"], wantGreeting) {
+		t.Errorf("Greetings = %#v; want %#v", def["Greetings"], wantGreeting)
+	}
+	if got, want := def["Menu"].(map[string]any)["Prompts"], []any{audioPrompt("file-new")}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Prompts = %#v; want %#v (no stored name for a new file)", got, want)
+	}
+	if !reflect.DeepEqual(cur, stored()) {
+		t.Error("cur was modified")
+	}
+	if !reflect.DeepEqual(body["DefaultCallFlow"].(map[string]any)["Greetings"], []any{audioPrompt("file-greeting")}) {
+		t.Error("body was modified")
 	}
 }
