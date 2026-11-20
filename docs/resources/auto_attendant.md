@@ -54,9 +54,16 @@ resource "teams_auto_attendant" "main" {
 ### Optional
 
 - `after_hours` (Block, Optional) Call flow used while the schedule is active. (see [below for nested schema](#nestedblock--after_hours))
+- `authorized_users` (List of String) User object ids allowed to change the auto attendant greetings and schedules.
 - `default_call_flow` (Block, Optional) Call flow used outside after hours and holidays. Required. (see [below for nested schema](#nestedblock--default_call_flow))
+- `dial_scope_exclude_group_ids` (List of String) Group ids whose members callers cannot reach by name or extension.
+- `dial_scope_include_group_ids` (List of String) Group ids whose members callers can reach by name or extension. Null means the whole directory.
+- `enable_voice_response` (Boolean) Let callers say menu options instead of pressing keys.
+- `hide_authorized_users` (List of String) User object ids hidden from the authorized users list shown in Teams. Teams does not require them to be in authorized_users.
 - `holiday` (Block List) Holiday call flows, in priority order. (see [below for nested schema](#nestedblock--holiday))
 - `language_id` (String) Language used for text-to-speech prompts.
+- `operator` (Attributes) Operator that callers reach with a transfer_to_operator menu option. (see [below for nested schema](#nestedatt--operator))
+- `user_name_extension` (String) Detail read out after each name in dial-by-name results: none, office or department.
 - `voice_id` (String) Text-to-speech voice: female or male.
 
 ### Read-Only
@@ -69,11 +76,14 @@ resource "teams_auto_attendant" "main" {
 
 Optional:
 
+- `directory_search_method` (String) Directory search callers can use from the menu: none, by_name or by_extension. Null means none. Not allowed with an automatic menu option.
+- `force_listen_menu` (Boolean) Play the whole menu prompt before accepting a key press or voice response.
 - `greeting` (String) Text-to-speech greeting played when the call flow starts. Conflicts with greeting_audio_file_id.
 - `greeting_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the greeting. Conflicts with greeting.
 - `menu_option` (Attributes List) Menu options. An automatic option must be the only one. (see [below for nested schema](#nestedatt--after_hours--menu_option))
 - `menu_prompt` (String) Text-to-speech prompt describing the menu options. Conflicts with menu_prompt_audio_file_id.
 - `menu_prompt_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the menu prompt. Conflicts with menu_prompt.
+- `ring_resource_account_delegates` (Boolean) Ring the delegates of the auto attendant resource account.
 - `schedule_id` (String) Id of the teams_schedule that activates this call flow. Required.
 
 Read-Only:
@@ -92,8 +102,12 @@ Optional:
 
 - `announcement` (String) Text-to-speech announcement. For announcement, set this or announcement_audio_file_id.
 - `announcement_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the announcement. For announcement, set this or announcement.
+- `call_priority` (Number) Priority of the transferred call, 1 (highest) to 5. Teams uses 3 when unset. Only allowed when action is transfer.
+- `enable_shared_voicemail_system_prompt_suppression` (Boolean) Skip the Teams "please leave a message after the tone" prompt. Only allowed when target_type is shared_voicemail.
+- `enable_transcription` (Boolean) Transcribe shared voicemail left through this option. Only allowed when target_type is shared_voicemail.
 - `target_id` (String) Transfer target: a tel: number, a user object id or a resource account object id. Required for transfer.
 - `target_type` (String) Transfer target type: user, application_endpoint, external_pstn, shared_voicemail, or voice_app (the id of a teams_call_queue or teams_auto_attendant). Required for transfer.
+- `voice_responses` (List of String) Words callers can say to choose this option. Teams stores them either way and uses them only when enable_voice_response is true.
 
 
 
@@ -102,11 +116,14 @@ Optional:
 
 Optional:
 
+- `directory_search_method` (String) Directory search callers can use from the menu: none, by_name or by_extension. Null means none. Not allowed with an automatic menu option.
+- `force_listen_menu` (Boolean) Play the whole menu prompt before accepting a key press or voice response.
 - `greeting` (String) Text-to-speech greeting played when the call flow starts. Conflicts with greeting_audio_file_id.
 - `greeting_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the greeting. Conflicts with greeting.
 - `menu_option` (Attributes List) Menu options. An automatic option must be the only one. (see [below for nested schema](#nestedatt--default_call_flow--menu_option))
 - `menu_prompt` (String) Text-to-speech prompt describing the menu options. Conflicts with menu_prompt_audio_file_id.
 - `menu_prompt_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the menu prompt. Conflicts with menu_prompt.
+- `ring_resource_account_delegates` (Boolean) Ring the delegates of the auto attendant resource account.
 
 Read-Only:
 
@@ -124,8 +141,12 @@ Optional:
 
 - `announcement` (String) Text-to-speech announcement. For announcement, set this or announcement_audio_file_id.
 - `announcement_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the announcement. For announcement, set this or announcement.
+- `call_priority` (Number) Priority of the transferred call, 1 (highest) to 5. Teams uses 3 when unset. Only allowed when action is transfer.
+- `enable_shared_voicemail_system_prompt_suppression` (Boolean) Skip the Teams "please leave a message after the tone" prompt. Only allowed when target_type is shared_voicemail.
+- `enable_transcription` (Boolean) Transcribe shared voicemail left through this option. Only allowed when target_type is shared_voicemail.
 - `target_id` (String) Transfer target: a tel: number, a user object id or a resource account object id. Required for transfer.
 - `target_type` (String) Transfer target type: user, application_endpoint, external_pstn, shared_voicemail, or voice_app (the id of a teams_call_queue or teams_auto_attendant). Required for transfer.
+- `voice_responses` (List of String) Words callers can say to choose this option. Teams stores them either way and uses them only when enable_voice_response is true.
 
 
 
@@ -134,11 +155,14 @@ Optional:
 
 Optional:
 
+- `directory_search_method` (String) Directory search callers can use from the menu: none, by_name or by_extension. Null means none. Not allowed with an automatic menu option.
+- `force_listen_menu` (Boolean) Play the whole menu prompt before accepting a key press or voice response.
 - `greeting` (String) Text-to-speech greeting played when the call flow starts. Conflicts with greeting_audio_file_id.
 - `greeting_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the greeting. Conflicts with greeting.
 - `menu_option` (Attributes List) Menu options. An automatic option must be the only one. (see [below for nested schema](#nestedatt--holiday--menu_option))
 - `menu_prompt` (String) Text-to-speech prompt describing the menu options. Conflicts with menu_prompt_audio_file_id.
 - `menu_prompt_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the menu prompt. Conflicts with menu_prompt.
+- `ring_resource_account_delegates` (Boolean) Ring the delegates of the auto attendant resource account.
 - `schedule_id` (String) Id of the teams_schedule that activates this call flow. Required.
 
 Read-Only:
@@ -157,5 +181,25 @@ Optional:
 
 - `announcement` (String) Text-to-speech announcement. For announcement, set this or announcement_audio_file_id.
 - `announcement_audio_file_id` (String) Id of a teams_audio_file (usage auto_attendant) played as the announcement. For announcement, set this or announcement.
+- `call_priority` (Number) Priority of the transferred call, 1 (highest) to 5. Teams uses 3 when unset. Only allowed when action is transfer.
+- `enable_shared_voicemail_system_prompt_suppression` (Boolean) Skip the Teams "please leave a message after the tone" prompt. Only allowed when target_type is shared_voicemail.
+- `enable_transcription` (Boolean) Transcribe shared voicemail left through this option. Only allowed when target_type is shared_voicemail.
 - `target_id` (String) Transfer target: a tel: number, a user object id or a resource account object id. Required for transfer.
 - `target_type` (String) Transfer target type: user, application_endpoint, external_pstn, shared_voicemail, or voice_app (the id of a teams_call_queue or teams_auto_attendant). Required for transfer.
+- `voice_responses` (List of String) Words callers can say to choose this option. Teams stores them either way and uses them only when enable_voice_response is true.
+
+
+
+<a id="nestedatt--operator"></a>
+### Nested Schema for `operator`
+
+Required:
+
+- `target_id` (String) Operator: a tel: number, a user object id or a resource account object id.
+- `target_type` (String) Operator type: user, application_endpoint, external_pstn, shared_voicemail, or voice_app (the id of a teams_call_queue or teams_auto_attendant).
+
+Optional:
+
+- `call_priority` (Number) Priority of calls transferred to the operator, 1 (highest) to 5. Teams uses 3 when unset.
+- `enable_shared_voicemail_system_prompt_suppression` (Boolean) Skip the Teams "please leave a message after the tone" prompt. Only allowed when target_type is shared_voicemail.
+- `enable_transcription` (Boolean) Transcribe shared voicemail left for the operator. Only allowed when target_type is shared_voicemail.

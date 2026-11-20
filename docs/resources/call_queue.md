@@ -49,33 +49,83 @@ resource "teams_call_queue" "support" {
 - `agent_alert_time` (Number) Seconds a call rings an agent before moving on (15-180).
 - `allow_opt_out` (Boolean) Allow agents to opt out of taking calls.
 - `authorized_users` (List of String) User object ids allowed to manage the queue.
+- `call_to_agent_ratio_threshold_before_offering_callback` (Number) Ratio of waiting calls to available agents at which a call back is offered.
+- `callback_email_notification_target` (String) Microsoft 365 group id notified when a call back fails.
+- `callback_offer_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played to offer the call back. Conflicts with callback_offer_text_to_speech_prompt.
+- `callback_offer_text_to_speech_prompt` (String) Text-to-speech prompt offering the call back. Conflicts with callback_offer_audio_file_id.
+- `callback_request_dtmf` (String) Key the caller presses to request a call back: tone0 to tone9, star or pound. Required when is_callback_enabled is true.
+- `channel_id` (String) Thread id (19:...@thread.tacv2) of the Teams channel whose team members answer the queue. Requires channel_user_object_id, and distribution_lists set to the team's Microsoft 365 group id. Only standard channels are fully supported.
+- `channel_user_object_id` (String) Object id of a team owner that Teams uses to link the channel. Required with channel_id. Teams does not return it, so it is kept from configuration.
 - `conference_mode` (Boolean) Connect calls to agents using conference mode.
 - `distribution_lists` (List of String) Microsoft 365 group ids whose members are agents.
+- `enable_no_agent_shared_voicemail_system_prompt_suppression` (Boolean) Skip the Teams "please leave a message after the tone" prompt after the no agent shared voicemail greeting. Only allowed when no_agent_action is shared_voicemail.
 - `enable_no_agent_shared_voicemail_transcription` (Boolean) Transcribe no agent shared voicemail.
+- `enable_overflow_shared_voicemail_system_prompt_suppression` (Boolean) Skip the Teams "please leave a message after the tone" prompt after the overflow shared voicemail greeting. Only allowed when overflow_action is shared_voicemail.
 - `enable_overflow_shared_voicemail_transcription` (Boolean) Transcribe overflow shared voicemail.
+- `enable_timeout_shared_voicemail_system_prompt_suppression` (Boolean) Skip the Teams "please leave a message after the tone" prompt after the timeout shared voicemail greeting. Only allowed when timeout_action is shared_voicemail.
 - `enable_timeout_shared_voicemail_transcription` (Boolean) Transcribe timeout shared voicemail.
+- `hide_authorized_users` (List of String) Authorized user object ids not shown to agents as supervisors.
+- `is_callback_enabled` (Boolean) Offer waiting callers a call back. Requires conference_mode true.
 - `language_id` (String) Language used for text-to-speech prompts.
 - `music_on_hold_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played while callers wait. When unset, the default Teams music plays.
 - `no_agent_action` (String) Action when no agents are available: queue, disconnect, forward, voicemail or shared_voicemail.
+- `no_agent_action_call_priority` (Number) Priority (1 highest to 5 lowest) of the call when the no agent action forwards it to a voice app. Only allowed when no_agent_action is forward.
 - `no_agent_action_target` (String) Target of the no agent action: a tel: number, a user object id or a Microsoft 365 group id. Required for forward, voicemail and shared_voicemail.
+- `no_agent_apply_to` (String) Calls the no agent action applies to: all_calls or new_calls.
+- `no_agent_disconnect_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played before the no agent disconnect. Conflicts with no_agent_disconnect_text_to_speech_prompt.
 - `no_agent_disconnect_text_to_speech_prompt` (String) Text-to-speech prompt played before the no agent disconnect.
+- `no_agent_redirect_person_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played before the no agent action redirects the call to a person (the action target is a user object id). Only allowed when no_agent_action is forward. Conflicts with no_agent_redirect_person_text_to_speech_prompt.
+- `no_agent_redirect_person_text_to_speech_prompt` (String) Text-to-speech prompt played before the no agent action redirects the call to a person (the action target is a user object id). Only allowed when no_agent_action is forward. Conflicts with no_agent_redirect_person_audio_file_id.
+- `no_agent_redirect_phone_number_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played before the no agent action redirects the call to a phone number (the action target is a tel: number). Only allowed when no_agent_action is forward. Conflicts with no_agent_redirect_phone_number_text_to_speech_prompt.
+- `no_agent_redirect_phone_number_text_to_speech_prompt` (String) Text-to-speech prompt played before the no agent action redirects the call to a phone number (the action target is a tel: number). Only allowed when no_agent_action is forward. Conflicts with no_agent_redirect_phone_number_audio_file_id.
+- `no_agent_redirect_voice_app_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played before the no agent action redirects the call to a voice app (the action target is a call queue or auto attendant id). Only allowed when no_agent_action is forward. Conflicts with no_agent_redirect_voice_app_text_to_speech_prompt.
+- `no_agent_redirect_voice_app_text_to_speech_prompt` (String) Text-to-speech prompt played before the no agent action redirects the call to a voice app (the action target is a call queue or auto attendant id). Only allowed when no_agent_action is forward. Conflicts with no_agent_redirect_voice_app_audio_file_id.
+- `no_agent_redirect_voicemail_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played before the no agent action redirects the call to personal voicemail. Only allowed when no_agent_action is voicemail. Conflicts with no_agent_redirect_voicemail_text_to_speech_prompt.
+- `no_agent_redirect_voicemail_text_to_speech_prompt` (String) Text-to-speech prompt played before the no agent action redirects the call to personal voicemail. Only allowed when no_agent_action is voicemail. Conflicts with no_agent_redirect_voicemail_audio_file_id.
 - `no_agent_shared_voicemail_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played as the shared voicemail greeting for the no agent action. When the action is shared_voicemail, set this or no_agent_shared_voicemail_text_to_speech_prompt; must be unset otherwise.
 - `no_agent_shared_voicemail_text_to_speech_prompt` (String) Text-to-speech shared voicemail greeting for the no agent action. When the action is shared_voicemail, set this or no_agent_shared_voicemail_audio_file_id; must be unset otherwise.
+- `number_of_calls_in_queue_before_offering_callback` (Number) Number of calls in the queue at which a call back is offered.
+- `obo_resource_account_ids` (List of String) Resource account ids agents can call on behalf of (outbound caller ID).
 - `overflow_action` (String) Overflow action: disconnect_with_busy, forward, voicemail or shared_voicemail.
+- `overflow_action_call_priority` (Number) Priority (1 highest to 5 lowest) of the call when the overflow action forwards it to a voice app. Only allowed when overflow_action is forward.
 - `overflow_action_target` (String) Target of the overflow action: a tel: number, a user object id or a Microsoft 365 group id. Required for forward, voicemail and shared_voicemail.
+- `overflow_disconnect_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played before the overflow disconnect. Conflicts with overflow_disconnect_text_to_speech_prompt.
 - `overflow_disconnect_text_to_speech_prompt` (String) Text-to-speech prompt played before the overflow disconnect.
+- `overflow_redirect_person_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played before the overflow action redirects the call to a person (the action target is a user object id). Only allowed when overflow_action is forward. Conflicts with overflow_redirect_person_text_to_speech_prompt.
+- `overflow_redirect_person_text_to_speech_prompt` (String) Text-to-speech prompt played before the overflow action redirects the call to a person (the action target is a user object id). Only allowed when overflow_action is forward. Conflicts with overflow_redirect_person_audio_file_id.
+- `overflow_redirect_phone_number_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played before the overflow action redirects the call to a phone number (the action target is a tel: number). Only allowed when overflow_action is forward. Conflicts with overflow_redirect_phone_number_text_to_speech_prompt.
+- `overflow_redirect_phone_number_text_to_speech_prompt` (String) Text-to-speech prompt played before the overflow action redirects the call to a phone number (the action target is a tel: number). Only allowed when overflow_action is forward. Conflicts with overflow_redirect_phone_number_audio_file_id.
+- `overflow_redirect_voice_app_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played before the overflow action redirects the call to a voice app (the action target is a call queue or auto attendant id). Only allowed when overflow_action is forward. Conflicts with overflow_redirect_voice_app_text_to_speech_prompt.
+- `overflow_redirect_voice_app_text_to_speech_prompt` (String) Text-to-speech prompt played before the overflow action redirects the call to a voice app (the action target is a call queue or auto attendant id). Only allowed when overflow_action is forward. Conflicts with overflow_redirect_voice_app_audio_file_id.
+- `overflow_redirect_voicemail_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played before the overflow action redirects the call to personal voicemail. Only allowed when overflow_action is voicemail. Conflicts with overflow_redirect_voicemail_text_to_speech_prompt.
+- `overflow_redirect_voicemail_text_to_speech_prompt` (String) Text-to-speech prompt played before the overflow action redirects the call to personal voicemail. Only allowed when overflow_action is voicemail. Conflicts with overflow_redirect_voicemail_audio_file_id.
 - `overflow_shared_voicemail_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played as the shared voicemail greeting for the overflow action. When the action is shared_voicemail, set this or overflow_shared_voicemail_text_to_speech_prompt; must be unset otherwise.
 - `overflow_shared_voicemail_text_to_speech_prompt` (String) Text-to-speech shared voicemail greeting for the overflow action. When the action is shared_voicemail, set this or overflow_shared_voicemail_audio_file_id; must be unset otherwise.
 - `overflow_threshold` (Number) Number of waiting calls that triggers overflow (0-200).
+- `overwrite_callable_channel` (Boolean) Take the channel over when it is already linked to another call queue.
 - `presence_based_routing` (Boolean) Route only to agents whose presence is available. Not allowed with longest_idle.
 - `routing_method` (String) Agent routing method: attendant, serial, round_robin or longest_idle.
+- `service_level_threshold_response_time_in_second` (Number) Target seconds to answer a call, used for service level reporting.
+- `shifts_scheduling_group_id` (String) Id of the Shifts scheduling group whose members are agents. Requires shifts_team_id.
+- `shifts_team_id` (String) Id of the team whose Shifts schedule supplies the agents. Requires shifts_scheduling_group_id. Conflicts with users, distribution_lists and channel_id.
 - `timeout_action` (String) Timeout action: disconnect, forward, voicemail or shared_voicemail.
+- `timeout_action_call_priority` (Number) Priority (1 highest to 5 lowest) of the call when the timeout action forwards it to a voice app. Only allowed when timeout_action is forward.
 - `timeout_action_target` (String) Target of the timeout action: a tel: number, a user object id or a Microsoft 365 group id. Required for forward, voicemail and shared_voicemail.
+- `timeout_disconnect_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played before the timeout disconnect. Conflicts with timeout_disconnect_text_to_speech_prompt.
 - `timeout_disconnect_text_to_speech_prompt` (String) Text-to-speech prompt played before the timeout disconnect.
+- `timeout_redirect_person_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played before the timeout action redirects the call to a person (the action target is a user object id). Only allowed when timeout_action is forward. Conflicts with timeout_redirect_person_text_to_speech_prompt.
+- `timeout_redirect_person_text_to_speech_prompt` (String) Text-to-speech prompt played before the timeout action redirects the call to a person (the action target is a user object id). Only allowed when timeout_action is forward. Conflicts with timeout_redirect_person_audio_file_id.
+- `timeout_redirect_phone_number_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played before the timeout action redirects the call to a phone number (the action target is a tel: number). Only allowed when timeout_action is forward. Conflicts with timeout_redirect_phone_number_text_to_speech_prompt.
+- `timeout_redirect_phone_number_text_to_speech_prompt` (String) Text-to-speech prompt played before the timeout action redirects the call to a phone number (the action target is a tel: number). Only allowed when timeout_action is forward. Conflicts with timeout_redirect_phone_number_audio_file_id.
+- `timeout_redirect_voice_app_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played before the timeout action redirects the call to a voice app (the action target is a call queue or auto attendant id). Only allowed when timeout_action is forward. Conflicts with timeout_redirect_voice_app_text_to_speech_prompt.
+- `timeout_redirect_voice_app_text_to_speech_prompt` (String) Text-to-speech prompt played before the timeout action redirects the call to a voice app (the action target is a call queue or auto attendant id). Only allowed when timeout_action is forward. Conflicts with timeout_redirect_voice_app_audio_file_id.
+- `timeout_redirect_voicemail_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played before the timeout action redirects the call to personal voicemail. Only allowed when timeout_action is voicemail. Conflicts with timeout_redirect_voicemail_text_to_speech_prompt.
+- `timeout_redirect_voicemail_text_to_speech_prompt` (String) Text-to-speech prompt played before the timeout action redirects the call to personal voicemail. Only allowed when timeout_action is voicemail. Conflicts with timeout_redirect_voicemail_audio_file_id.
 - `timeout_shared_voicemail_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played as the shared voicemail greeting for the timeout action. When the action is shared_voicemail, set this or timeout_shared_voicemail_text_to_speech_prompt; must be unset otherwise.
 - `timeout_shared_voicemail_text_to_speech_prompt` (String) Text-to-speech shared voicemail greeting for the timeout action. When the action is shared_voicemail, set this or timeout_shared_voicemail_audio_file_id; must be unset otherwise.
 - `timeout_threshold` (Number) Seconds a call waits before timeout (0-2700).
 - `users` (List of String) Agent user object ids.
+- `wait_time_before_offering_callback_in_second` (Number) Seconds a caller waits before a call back is offered.
 - `welcome_audio_file_id` (String) Id of a teams_audio_file (usage call_queue) played as the greeting. Conflicts with welcome_text_to_speech_prompt.
 - `welcome_text_to_speech_prompt` (String) Text-to-speech greeting played to callers. Conflicts with welcome_audio_file_id.
 
@@ -83,4 +133,3 @@ resource "teams_call_queue" "support" {
 
 - `application_instances` (List of String) Resource account ids linked to the queue.
 - `id` (String) Call queue identity (GUID).
-- `obo_resource_account_ids` (List of String) Resource account ids agents can call on behalf of.

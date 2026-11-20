@@ -75,7 +75,12 @@ func (k voiceAppKind) op(verb, method, path string) teamsapi.Op {
 
 // createVoiceApp posts a new object to the collection and returns the stored object.
 func createVoiceApp(ctx context.Context, api voiceAppsInvoker, k voiceAppKind, body map[string]any) (map[string]any, error) {
-	res, err := api.Invoke(ctx, k.op("New", http.MethodPost, k.path), body)
+	return createVoiceAppWithQuery(ctx, api, k, "", body)
+}
+
+// createVoiceAppWithQuery creates an object, appending query to the request path.
+func createVoiceAppWithQuery(ctx context.Context, api voiceAppsInvoker, k voiceAppKind, query string, body map[string]any) (map[string]any, error) {
+	res, err := api.Invoke(ctx, k.op("New", http.MethodPost, k.path+query), body)
 	if err != nil {
 		return nil, err
 	}
@@ -101,12 +106,17 @@ func getVoiceApp(ctx context.Context, api voiceAppsInvoker, k voiceAppKind, id s
 
 // putVoiceApp replaces an object with the given full object.
 func putVoiceApp(ctx context.Context, api voiceAppsInvoker, k voiceAppKind, id string, obj map[string]any) error {
+	return putVoiceAppWithQuery(ctx, api, k, id, "", obj)
+}
+
+// putVoiceAppWithQuery replaces an object, appending query to the request path.
+func putVoiceAppWithQuery(ctx context.Context, api voiceAppsInvoker, k voiceAppKind, id, query string, obj map[string]any) error {
 	params := make(map[string]any, len(obj)+1)
 	for key, v := range obj {
 		params[key] = v
 	}
 	params["Identity"] = id
-	_, err := api.Invoke(ctx, k.op("Set", http.MethodPut, k.itemPath()), params)
+	_, err := api.Invoke(ctx, k.op("Set", http.MethodPut, k.itemPath()+query), params)
 	return err
 }
 
