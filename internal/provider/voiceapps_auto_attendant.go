@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
@@ -41,18 +42,37 @@ const (
 	aaAssocHoliday       = "Holiday"
 	aaAfterHoursPriority = 1
 	aaHolidayPriority    = 100
+	// aaDefaultCallPriority is the call priority Teams stores when none is given.
+	aaDefaultCallPriority = 3
+	aaDialScopeDefault    = "Default"
+	aaDialScopeGroup      = "Group"
 )
 
 type autoAttendantModel struct {
-	ID                   types.String `tfsdk:"id"`
-	Name                 types.String `tfsdk:"name"`
-	LanguageID           types.String `tfsdk:"language_id"`
-	TimeZoneID           types.String `tfsdk:"time_zone_id"`
-	VoiceID              types.String `tfsdk:"voice_id"`
-	DefaultCallFlow      types.Object `tfsdk:"default_call_flow"`
-	AfterHours           types.Object `tfsdk:"after_hours"`
-	Holiday              types.List   `tfsdk:"holiday"`
-	ApplicationInstances types.List   `tfsdk:"application_instances"`
+	ID                       types.String `tfsdk:"id"`
+	Name                     types.String `tfsdk:"name"`
+	LanguageID               types.String `tfsdk:"language_id"`
+	TimeZoneID               types.String `tfsdk:"time_zone_id"`
+	VoiceID                  types.String `tfsdk:"voice_id"`
+	Operator                 types.Object `tfsdk:"operator"`
+	EnableVoiceResponse      types.Bool   `tfsdk:"enable_voice_response"`
+	AuthorizedUsers          types.List   `tfsdk:"authorized_users"`
+	HideAuthorizedUsers      types.List   `tfsdk:"hide_authorized_users"`
+	UserNameExtension        types.String `tfsdk:"user_name_extension"`
+	DialScopeIncludeGroupIDs types.List   `tfsdk:"dial_scope_include_group_ids"`
+	DialScopeExcludeGroupIDs types.List   `tfsdk:"dial_scope_exclude_group_ids"`
+	DefaultCallFlow          types.Object `tfsdk:"default_call_flow"`
+	AfterHours               types.Object `tfsdk:"after_hours"`
+	Holiday                  types.List   `tfsdk:"holiday"`
+	ApplicationInstances     types.List   `tfsdk:"application_instances"`
+}
+
+type aaOperatorModel struct {
+	TargetID             types.String `tfsdk:"target_id"`
+	TargetType           types.String `tfsdk:"target_type"`
+	CallPriority         types.Int64  `tfsdk:"call_priority"`
+	EnableTranscription  types.Bool   `tfsdk:"enable_transcription"`
+	SuppressSystemPrompt types.Bool   `tfsdk:"enable_shared_voicemail_system_prompt_suppression"`
 }
 
 type aaMenuOptionModel struct {
@@ -62,38 +82,52 @@ type aaMenuOptionModel struct {
 	TargetType              types.String `tfsdk:"target_type"`
 	Announcement            types.String `tfsdk:"announcement"`
 	AnnouncementAudioFileID types.String `tfsdk:"announcement_audio_file_id"`
+	SuppressSystemPrompt    types.Bool   `tfsdk:"enable_shared_voicemail_system_prompt_suppression"`
+	EnableTranscription     types.Bool   `tfsdk:"enable_transcription"`
+	CallPriority            types.Int64  `tfsdk:"call_priority"`
+	VoiceResponses          types.List   `tfsdk:"voice_responses"`
 }
 
 type aaCallFlowModel struct {
-	ID                    types.String        `tfsdk:"id"`
-	Greeting              types.String        `tfsdk:"greeting"`
-	GreetingAudioFileID   types.String        `tfsdk:"greeting_audio_file_id"`
-	MenuPrompt            types.String        `tfsdk:"menu_prompt"`
-	MenuPromptAudioFileID types.String        `tfsdk:"menu_prompt_audio_file_id"`
-	MenuOption            []aaMenuOptionModel `tfsdk:"menu_option"`
+	ID                           types.String        `tfsdk:"id"`
+	Greeting                     types.String        `tfsdk:"greeting"`
+	GreetingAudioFileID          types.String        `tfsdk:"greeting_audio_file_id"`
+	MenuPrompt                   types.String        `tfsdk:"menu_prompt"`
+	MenuPromptAudioFileID        types.String        `tfsdk:"menu_prompt_audio_file_id"`
+	DirectorySearchMethod        types.String        `tfsdk:"directory_search_method"`
+	ForceListenMenu              types.Bool          `tfsdk:"force_listen_menu"`
+	RingResourceAccountDelegates types.Bool          `tfsdk:"ring_resource_account_delegates"`
+	MenuOption                   []aaMenuOptionModel `tfsdk:"menu_option"`
 }
 
 type aaScheduledCallFlowModel struct {
-	ID                    types.String        `tfsdk:"id"`
-	ScheduleID            types.String        `tfsdk:"schedule_id"`
-	Greeting              types.String        `tfsdk:"greeting"`
-	GreetingAudioFileID   types.String        `tfsdk:"greeting_audio_file_id"`
-	MenuPrompt            types.String        `tfsdk:"menu_prompt"`
-	MenuPromptAudioFileID types.String        `tfsdk:"menu_prompt_audio_file_id"`
-	MenuOption            []aaMenuOptionModel `tfsdk:"menu_option"`
+	ID                           types.String        `tfsdk:"id"`
+	ScheduleID                   types.String        `tfsdk:"schedule_id"`
+	Greeting                     types.String        `tfsdk:"greeting"`
+	GreetingAudioFileID          types.String        `tfsdk:"greeting_audio_file_id"`
+	MenuPrompt                   types.String        `tfsdk:"menu_prompt"`
+	MenuPromptAudioFileID        types.String        `tfsdk:"menu_prompt_audio_file_id"`
+	DirectorySearchMethod        types.String        `tfsdk:"directory_search_method"`
+	ForceListenMenu              types.Bool          `tfsdk:"force_listen_menu"`
+	RingResourceAccountDelegates types.Bool          `tfsdk:"ring_resource_account_delegates"`
+	MenuOption                   []aaMenuOptionModel `tfsdk:"menu_option"`
 }
 
 func (s *aaScheduledCallFlowModel) flow() aaCallFlowModel {
 	return aaCallFlowModel{
 		ID: s.ID, Greeting: s.Greeting, GreetingAudioFileID: s.GreetingAudioFileID,
-		MenuPrompt: s.MenuPrompt, MenuPromptAudioFileID: s.MenuPromptAudioFileID, MenuOption: s.MenuOption,
+		MenuPrompt: s.MenuPrompt, MenuPromptAudioFileID: s.MenuPromptAudioFileID,
+		DirectorySearchMethod: s.DirectorySearchMethod, ForceListenMenu: s.ForceListenMenu,
+		RingResourceAccountDelegates: s.RingResourceAccountDelegates, MenuOption: s.MenuOption,
 	}
 }
 
 func scheduledFlow(f aaCallFlowModel, scheduleID types.String) aaScheduledCallFlowModel {
 	return aaScheduledCallFlowModel{
 		ID: f.ID, ScheduleID: scheduleID, Greeting: f.Greeting, GreetingAudioFileID: f.GreetingAudioFileID,
-		MenuPrompt: f.MenuPrompt, MenuPromptAudioFileID: f.MenuPromptAudioFileID, MenuOption: f.MenuOption,
+		MenuPrompt: f.MenuPrompt, MenuPromptAudioFileID: f.MenuPromptAudioFileID,
+		DirectorySearchMethod: f.DirectorySearchMethod, ForceListenMenu: f.ForceListenMenu,
+		RingResourceAccountDelegates: f.RingResourceAccountDelegates, MenuOption: f.MenuOption,
 	}
 }
 
@@ -112,25 +146,52 @@ var (
 		"target_type":                types.StringType,
 		"announcement":               types.StringType,
 		"announcement_audio_file_id": types.StringType,
+		"enable_shared_voicemail_system_prompt_suppression": types.BoolType,
+		"enable_transcription":                              types.BoolType,
+		"call_priority":                                     types.Int64Type,
+		"voice_responses":                                   types.ListType{ElemType: types.StringType},
 	}}
 	aaCallFlowAttrTypes = map[string]attr.Type{
-		"id":                        types.StringType,
-		"greeting":                  types.StringType,
-		"greeting_audio_file_id":    types.StringType,
-		"menu_prompt":               types.StringType,
-		"menu_prompt_audio_file_id": types.StringType,
-		"menu_option":               types.ListType{ElemType: aaMenuOptionType},
+		"id":                              types.StringType,
+		"greeting":                        types.StringType,
+		"greeting_audio_file_id":          types.StringType,
+		"menu_prompt":                     types.StringType,
+		"menu_prompt_audio_file_id":       types.StringType,
+		"directory_search_method":         types.StringType,
+		"force_listen_menu":               types.BoolType,
+		"ring_resource_account_delegates": types.BoolType,
+		"menu_option":                     types.ListType{ElemType: aaMenuOptionType},
 	}
 	aaScheduledCallFlowAttrTypes = map[string]attr.Type{
-		"id":                        types.StringType,
-		"schedule_id":               types.StringType,
-		"greeting":                  types.StringType,
-		"greeting_audio_file_id":    types.StringType,
-		"menu_prompt":               types.StringType,
-		"menu_prompt_audio_file_id": types.StringType,
-		"menu_option":               types.ListType{ElemType: aaMenuOptionType},
+		"id":                              types.StringType,
+		"schedule_id":                     types.StringType,
+		"greeting":                        types.StringType,
+		"greeting_audio_file_id":          types.StringType,
+		"menu_prompt":                     types.StringType,
+		"menu_prompt_audio_file_id":       types.StringType,
+		"directory_search_method":         types.StringType,
+		"force_listen_menu":               types.BoolType,
+		"ring_resource_account_delegates": types.BoolType,
+		"menu_option":                     types.ListType{ElemType: aaMenuOptionType},
+	}
+	aaOperatorAttrTypes = map[string]attr.Type{
+		"target_id":            types.StringType,
+		"target_type":          types.StringType,
+		"call_priority":        types.Int64Type,
+		"enable_transcription": types.BoolType,
+		"enable_shared_voicemail_system_prompt_suppression": types.BoolType,
 	}
 )
+
+// operator decodes the operator attribute. Null or unknown reads as nil.
+func (m *autoAttendantModel) operator(ctx context.Context) (*aaOperatorModel, diag.Diagnostics) {
+	if m.Operator.IsNull() || m.Operator.IsUnknown() {
+		return nil, nil
+	}
+	var o aaOperatorModel
+	diags := m.Operator.As(ctx, &o, basetypes.ObjectAsOptions{})
+	return &o, diags
+}
 
 // flows decodes the call flow blocks. Null or unknown blocks are left empty.
 func (m *autoAttendantModel) flows(ctx context.Context) (aaFlows, diag.Diagnostics) {
@@ -178,11 +239,14 @@ func (r *autoAttendantResource) Metadata(_ context.Context, req resource.Metadat
 // aaCallFlowAttributes returns the attributes of a call flow block.
 func aaCallFlowAttributes(scheduled bool) map[string]schema.Attribute {
 	attrs := map[string]schema.Attribute{
-		"id":                        schema.StringAttribute{Computed: true, Description: "Call flow id, generated by the provider.", PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
-		"greeting":                  schema.StringAttribute{Optional: true, Description: "Text-to-speech greeting played when the call flow starts. Conflicts with greeting_audio_file_id."},
-		"greeting_audio_file_id":    schema.StringAttribute{Optional: true, Description: "Id of a teams_audio_file (usage auto_attendant) played as the greeting. Conflicts with greeting."},
-		"menu_prompt":               schema.StringAttribute{Optional: true, Description: "Text-to-speech prompt describing the menu options. Conflicts with menu_prompt_audio_file_id."},
-		"menu_prompt_audio_file_id": schema.StringAttribute{Optional: true, Description: "Id of a teams_audio_file (usage auto_attendant) played as the menu prompt. Conflicts with menu_prompt."},
+		"id":                              schema.StringAttribute{Computed: true, Description: "Call flow id, generated by the provider.", PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
+		"greeting":                        schema.StringAttribute{Optional: true, Description: "Text-to-speech greeting played when the call flow starts. Conflicts with greeting_audio_file_id."},
+		"greeting_audio_file_id":          schema.StringAttribute{Optional: true, Description: "Id of a teams_audio_file (usage auto_attendant) played as the greeting. Conflicts with greeting."},
+		"menu_prompt":                     schema.StringAttribute{Optional: true, Description: "Text-to-speech prompt describing the menu options. Conflicts with menu_prompt_audio_file_id."},
+		"menu_prompt_audio_file_id":       schema.StringAttribute{Optional: true, Description: "Id of a teams_audio_file (usage auto_attendant) played as the menu prompt. Conflicts with menu_prompt."},
+		"directory_search_method":         schema.StringAttribute{Optional: true, Description: "Directory search callers can use from the menu: none, by_name or by_extension. Null means none. Not allowed with an automatic menu option.", Validators: []validator.String{aaDirectorySearchMethods.stringValidator()}},
+		"force_listen_menu":               schema.BoolAttribute{Optional: true, Description: "Play the whole menu prompt before accepting a key press or voice response."},
+		"ring_resource_account_delegates": schema.BoolAttribute{Optional: true, Description: "Ring the delegates of the auto attendant resource account."},
 		"menu_option": schema.ListNestedAttribute{
 			Optional:    true,
 			Description: "Menu options. An automatic option must be the only one.",
@@ -193,6 +257,10 @@ func aaCallFlowAttributes(scheduled bool) map[string]schema.Attribute {
 				"target_type":                schema.StringAttribute{Optional: true, Description: "Transfer target type: user, application_endpoint, external_pstn, shared_voicemail, or voice_app (the id of a teams_call_queue or teams_auto_attendant). Required for transfer.", Validators: []validator.String{aaTargetTypes.stringValidator()}},
 				"announcement":               schema.StringAttribute{Optional: true, Description: "Text-to-speech announcement. For announcement, set this or announcement_audio_file_id."},
 				"announcement_audio_file_id": schema.StringAttribute{Optional: true, Description: "Id of a teams_audio_file (usage auto_attendant) played as the announcement. For announcement, set this or announcement."},
+				"enable_shared_voicemail_system_prompt_suppression": schema.BoolAttribute{Optional: true, Description: "Skip the Teams \"please leave a message after the tone\" prompt. Only allowed when target_type is shared_voicemail."},
+				"enable_transcription":                              schema.BoolAttribute{Optional: true, Description: "Transcribe shared voicemail left through this option. Only allowed when target_type is shared_voicemail."},
+				"call_priority":                                     schema.Int64Attribute{Optional: true, Description: "Priority of the transferred call, 1 (highest) to 5. Teams uses 3 when unset. Only allowed when action is transfer.", Validators: []validator.Int64{int64Range{lo: 1, hi: 5}}},
+				"voice_responses":                                   schema.ListAttribute{Optional: true, ElementType: types.StringType, Description: "Words callers can say to choose this option. Teams stores them either way and uses them only when enable_voice_response is true."},
 			}},
 		},
 	}
@@ -212,6 +280,23 @@ func (r *autoAttendantResource) Schema(_ context.Context, _ resource.SchemaReque
 			"time_zone_id":          schema.StringAttribute{Required: true, Description: "Windows time zone id, e.g. Central Standard Time."},
 			"voice_id":              schema.StringAttribute{Optional: true, Computed: true, Default: stringdefault.StaticString("female"), Description: "Text-to-speech voice: female or male.", Validators: []validator.String{aaVoices.stringValidator()}},
 			"application_instances": schema.ListAttribute{Computed: true, ElementType: types.StringType, Description: "Resource account ids linked to the auto attendant.", PlanModifiers: []planmodifier.List{listplanmodifier.UseStateForUnknown()}},
+			"operator": schema.SingleNestedAttribute{
+				Optional:    true,
+				Description: "Operator that callers reach with a transfer_to_operator menu option.",
+				Attributes: map[string]schema.Attribute{
+					"target_id":            schema.StringAttribute{Required: true, Description: "Operator: a tel: number, a user object id or a resource account object id."},
+					"target_type":          schema.StringAttribute{Required: true, Description: "Operator type: user, application_endpoint, external_pstn, shared_voicemail, or voice_app (the id of a teams_call_queue or teams_auto_attendant).", Validators: []validator.String{aaTargetTypes.stringValidator()}},
+					"call_priority":        schema.Int64Attribute{Optional: true, Description: "Priority of calls transferred to the operator, 1 (highest) to 5. Teams uses 3 when unset.", Validators: []validator.Int64{int64Range{lo: 1, hi: 5}}},
+					"enable_transcription": schema.BoolAttribute{Optional: true, Description: "Transcribe shared voicemail left for the operator. Only allowed when target_type is shared_voicemail."},
+					"enable_shared_voicemail_system_prompt_suppression": schema.BoolAttribute{Optional: true, Description: "Skip the Teams \"please leave a message after the tone\" prompt. Only allowed when target_type is shared_voicemail."},
+				},
+			},
+			"enable_voice_response":        schema.BoolAttribute{Optional: true, Computed: true, Default: booldefault.StaticBool(false), Description: "Let callers say menu options instead of pressing keys."},
+			"authorized_users":             schema.ListAttribute{Optional: true, ElementType: types.StringType, Description: "User object ids allowed to change the auto attendant greetings and schedules."},
+			"hide_authorized_users":        schema.ListAttribute{Optional: true, ElementType: types.StringType, Description: "User object ids hidden from the authorized users list shown in Teams. Teams does not require them to be in authorized_users."},
+			"user_name_extension":          schema.StringAttribute{Optional: true, Computed: true, Default: stringdefault.StaticString("none"), Description: "Detail read out after each name in dial-by-name results: none, office or department.", Validators: []validator.String{aaUserNameExtensions.stringValidator()}},
+			"dial_scope_include_group_ids": schema.ListAttribute{Optional: true, ElementType: types.StringType, Description: "Group ids whose members callers can reach by name or extension. Null means the whole directory."},
+			"dial_scope_exclude_group_ids": schema.ListAttribute{Optional: true, ElementType: types.StringType, Description: "Group ids whose members callers cannot reach by name or extension."},
 		},
 		Blocks: map[string]schema.Block{
 			"default_call_flow": schema.SingleNestedBlock{
@@ -358,6 +443,10 @@ func autoAttendantUpdateBody(cur, body map[string]any) map[string]any {
 	merged := overlayObject(cur, body)
 	// Schedules is read-only; the PUT omits it.
 	delete(merged, "Schedules")
+	// Operator replaces the stored operator instead of being overlaid.
+	if op, ok := body["Operator"]; ok {
+		merged["Operator"] = op
+	}
 	names := map[string]string{}
 	aaAudioFileNames(cur, names)
 	out, _ := aaFillAudioFileNames(merged, names).(map[string]any)
@@ -419,9 +508,18 @@ func validateAutoAttendant(ctx context.Context, m *autoAttendantModel) diag.Diag
 	if d.HasError() {
 		return diags
 	}
+	op, d := m.operator(ctx)
+	if !d.HasError() && op != nil {
+		diags.Append(validateAAOperator(path.Root("operator"), op)...)
+	}
+	needOperator := m.Operator.IsNull()
 	if !m.DefaultCallFlow.IsNull() && !m.DefaultCallFlow.IsUnknown() {
 		diags.Append(validateAAPrompts(path.Root("default_call_flow"), f.Default)...)
 		diags.Append(validateAAMenu(path.Root("default_call_flow"), f.Default.MenuOption)...)
+		diags.Append(validateAADirectorySearch(path.Root("default_call_flow"), f.Default)...)
+		if needOperator {
+			diags.Append(validateAAOperatorUse(path.Root("default_call_flow"), f.Default.MenuOption)...)
+		}
 	}
 	if f.AfterHours != nil {
 		if f.AfterHours.ScheduleID.IsNull() {
@@ -429,6 +527,10 @@ func validateAutoAttendant(ctx context.Context, m *autoAttendantModel) diag.Diag
 		}
 		diags.Append(validateAAPrompts(path.Root("after_hours"), f.AfterHours.flow())...)
 		diags.Append(validateAAMenu(path.Root("after_hours"), f.AfterHours.MenuOption)...)
+		diags.Append(validateAADirectorySearch(path.Root("after_hours"), f.AfterHours.flow())...)
+		if needOperator {
+			diags.Append(validateAAOperatorUse(path.Root("after_hours"), f.AfterHours.MenuOption)...)
+		}
 	}
 	for i, h := range f.Holidays {
 		if h.ScheduleID.IsNull() {
@@ -436,6 +538,54 @@ func validateAutoAttendant(ctx context.Context, m *autoAttendantModel) diag.Diag
 		}
 		diags.Append(validateAAPrompts(path.Root("holiday").AtListIndex(i), h.flow())...)
 		diags.Append(validateAAMenu(path.Root("holiday").AtListIndex(i), h.MenuOption)...)
+		diags.Append(validateAADirectorySearch(path.Root("holiday").AtListIndex(i), h.flow())...)
+		if needOperator {
+			diags.Append(validateAAOperatorUse(path.Root("holiday").AtListIndex(i), h.MenuOption)...)
+		}
+	}
+	return diags
+}
+
+// validateAAOperator checks the operator flags against its target type.
+func validateAAOperator(p path.Path, o *aaOperatorModel) diag.Diagnostics {
+	var diags diag.Diagnostics
+	const summary = "Invalid auto attendant configuration"
+	if o.TargetType.IsUnknown() || o.TargetType.ValueString() == "shared_voicemail" {
+		return diags
+	}
+	if !o.SuppressSystemPrompt.IsNull() && !o.SuppressSystemPrompt.IsUnknown() {
+		diags.AddAttributeError(p.AtName("enable_shared_voicemail_system_prompt_suppression"), summary, "enable_shared_voicemail_system_prompt_suppression must be unset unless target_type is \"shared_voicemail\".")
+	}
+	if !o.EnableTranscription.IsNull() && !o.EnableTranscription.IsUnknown() {
+		diags.AddAttributeError(p.AtName("enable_transcription"), summary, "enable_transcription must be unset unless target_type is \"shared_voicemail\".")
+	}
+	return diags
+}
+
+// validateAAOperatorUse reports transfer_to_operator menu options; call it only when operator is null.
+func validateAAOperatorUse(p path.Path, opts []aaMenuOptionModel) diag.Diagnostics {
+	var diags diag.Diagnostics
+	for i, o := range opts {
+		if isSet(o.Action) && o.Action.ValueString() == "transfer_to_operator" {
+			diags.AddAttributeError(p.AtName("menu_option").AtListIndex(i).AtName("action"), "Invalid auto attendant configuration",
+				"action \"transfer_to_operator\" requires the operator attribute.")
+		}
+	}
+	return diags
+}
+
+// validateAADirectorySearch rejects a directory search method other than none on a menu with an automatic option.
+func validateAADirectorySearch(p path.Path, f aaCallFlowModel) diag.Diagnostics {
+	var diags diag.Diagnostics
+	if !isSet(f.DirectorySearchMethod) || f.DirectorySearchMethod.ValueString() == "none" {
+		return diags
+	}
+	for _, o := range f.MenuOption {
+		if isSet(o.Key) && o.Key.ValueString() == "automatic" {
+			diags.AddAttributeError(p.AtName("directory_search_method"), "Invalid auto attendant configuration",
+				"directory_search_method must be none or unset when the menu has an option with key \"automatic\".")
+			return diags
+		}
 	}
 	return diags
 }
@@ -530,6 +680,15 @@ func validateAAMenu(p path.Path, opts []aaMenuOptionModel) diag.Diagnostics {
 		if action != "announcement" && isSet(o.AnnouncementAudioFileID) {
 			diags.AddAttributeError(op.AtName("announcement_audio_file_id"), summary, "announcement_audio_file_id must be unset unless action is \"announcement\".")
 		}
+		if !o.SuppressSystemPrompt.IsNull() && !o.SuppressSystemPrompt.IsUnknown() && !o.TargetType.IsUnknown() && o.TargetType.ValueString() != "shared_voicemail" {
+			diags.AddAttributeError(op.AtName("enable_shared_voicemail_system_prompt_suppression"), summary, "enable_shared_voicemail_system_prompt_suppression must be unset unless target_type is \"shared_voicemail\".")
+		}
+		if !o.EnableTranscription.IsNull() && !o.EnableTranscription.IsUnknown() && !o.TargetType.IsUnknown() && o.TargetType.ValueString() != "shared_voicemail" {
+			diags.AddAttributeError(op.AtName("enable_transcription"), summary, "enable_transcription must be unset unless target_type is \"shared_voicemail\".")
+		}
+		if !o.CallPriority.IsNull() && !o.CallPriority.IsUnknown() && action != "transfer" {
+			diags.AddAttributeError(op.AtName("call_priority"), summary, "call_priority must be unset unless action is \"transfer\".")
+		}
 	}
 	return diags
 }
@@ -553,7 +712,12 @@ func autoAttendantBodyFromModel(ctx context.Context, m *autoAttendantModel) (map
 	if diags.HasError() {
 		return nil, diags
 	}
-	body, d := autoAttendantBody(m, &f)
+	op, d := m.operator(ctx)
+	diags.Append(d...)
+	if diags.HasError() {
+		return nil, diags
+	}
+	body, d := autoAttendantBody(m, op, &f)
 	diags.Append(d...)
 	if diags.HasError() {
 		return nil, diags
@@ -564,18 +728,36 @@ func autoAttendantBodyFromModel(ctx context.Context, m *autoAttendantModel) (map
 
 // autoAttendantBody builds the write body (stored REST field names). Call flows
 // without an id get a new one, written back into f.
-func autoAttendantBody(m *autoAttendantModel, f *aaFlows) (map[string]any, diag.Diagnostics) {
+func autoAttendantBody(m *autoAttendantModel, op *aaOperatorModel, f *aaFlows) (map[string]any, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	name := m.Name.ValueString()
 	body := map[string]any{
-		"Name":       name,
-		"LanguageId": m.LanguageID.ValueString(),
-		"TimeZoneId": m.TimeZoneID.ValueString(),
+		"Name":                 name,
+		"LanguageId":           m.LanguageID.ValueString(),
+		"TimeZoneId":           m.TimeZoneID.ValueString(),
+		"VoiceResponseEnabled": m.EnableVoiceResponse.ValueBool(),
+		"AuthorizedUsers":      aaStringsWire(m.AuthorizedUsers),
+		"HideAuthorizedUsers":  aaStringsWire(m.HideAuthorizedUsers),
+		"DirectoryLookupScope": map[string]any{
+			"InclusionScope": aaDialScopeWire(listStrings(m.DialScopeIncludeGroupIDs)),
+			"ExclusionScope": aaDialScopeWire(listStrings(m.DialScopeExcludeGroupIDs)),
+		},
 	}
 	if w, ok := aaVoices.toWire(m.VoiceID.ValueString()); ok {
 		body["VoiceId"] = w
 	} else {
 		diags.AddAttributeError(path.Root("voice_id"), "Invalid voice_id", fmt.Sprintf("%q is not a known voice.", m.VoiceID.ValueString()))
+	}
+	if w, ok := aaUserNameExtensions.toWire(m.UserNameExtension.ValueString()); ok {
+		body["UserNameExtension"] = w
+	} else {
+		diags.AddAttributeError(path.Root("user_name_extension"), "Invalid user_name_extension", fmt.Sprintf("%q is not a known user name extension.", m.UserNameExtension.ValueString()))
+	}
+	body["Operator"] = nil
+	if op != nil {
+		ent, d := aaOperatorWire(op, path.Root("operator"))
+		diags.Append(d...)
+		body["Operator"] = ent
 	}
 
 	if err := ensureFlowID(&f.Default.ID); err != nil {
@@ -677,23 +859,94 @@ func aaCallFlowWire(name string, f aaCallFlowModel, p path.Path) (map[string]any
 					diags.AddAttributeError(op.AtName("target_type"), "Invalid target_type", fmt.Sprintf("%q is not a known target type.", o.TargetType.ValueString()))
 				}
 			}
+			if !o.SuppressSystemPrompt.IsNull() && !o.SuppressSystemPrompt.IsUnknown() {
+				target["EnableSharedVoicemailSystemPromptSuppression"] = o.SuppressSystemPrompt.ValueBool()
+			}
+			if !o.EnableTranscription.IsNull() && !o.EnableTranscription.IsUnknown() {
+				target["EnableTranscription"] = o.EnableTranscription.ValueBool()
+			}
+			if !o.CallPriority.IsNull() && !o.CallPriority.IsUnknown() {
+				target["CallPriority"] = o.CallPriority.ValueInt64()
+			}
 			opt["CallTarget"] = target
 		}
 		if p := aaPromptOrNil(o.Announcement, o.AnnouncementAudioFileID); p != nil {
 			opt["Prompt"] = p
 		}
+		if vr := listStrings(o.VoiceResponses); vr != nil {
+			opt["VoiceResponses"] = vr
+		}
 		opts = append(opts, opt)
 	}
+	method := "none"
+	if isSet(f.DirectorySearchMethod) {
+		method = f.DirectorySearchMethod.ValueString()
+	}
+	methodWire, ok := aaDirectorySearchMethods.toWire(method)
+	if !ok {
+		diags.AddAttributeError(p.AtName("directory_search_method"), "Invalid directory_search_method", fmt.Sprintf("%q is not a known directory search method.", method))
+	}
 	return map[string]any{
-		"Id":        f.ID.ValueString(),
-		"Name":      name,
-		"Greetings": aaPromptsWire(f.Greeting, f.GreetingAudioFileID),
+		"Id":                           f.ID.ValueString(),
+		"Name":                         name,
+		"Greetings":                    aaPromptsWire(f.Greeting, f.GreetingAudioFileID),
+		"ForceListenMenuEnabled":       f.ForceListenMenu.ValueBool(),
+		"RingResourceAccountDelegates": f.RingResourceAccountDelegates.ValueBool(),
 		"Menu": map[string]any{
-			"Name":        name + " menu",
-			"Prompts":     aaPromptsWire(f.MenuPrompt, f.MenuPromptAudioFileID),
-			"MenuOptions": opts,
+			"Name":                  name + " menu",
+			"Prompts":               aaPromptsWire(f.MenuPrompt, f.MenuPromptAudioFileID),
+			"MenuOptions":           opts,
+			"DialByNameEnabled":     method == "by_name",
+			"DirectorySearchMethod": methodWire,
 		},
 	}, diags
+}
+
+// aaOperatorWire returns the operator as a callable entity with every field set.
+func aaOperatorWire(o *aaOperatorModel, p path.Path) (map[string]any, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	priority := int64(aaDefaultCallPriority)
+	if !o.CallPriority.IsNull() && !o.CallPriority.IsUnknown() {
+		priority = o.CallPriority.ValueInt64()
+	}
+	ent := map[string]any{
+		"Id":                  o.TargetID.ValueString(),
+		"CallPriority":        priority,
+		"EnableTranscription": o.EnableTranscription.ValueBool(),
+		"EnableSharedVoicemailSystemPromptSuppression": o.SuppressSystemPrompt.ValueBool(),
+	}
+	if w, ok := aaTargetTypes.toWire(o.TargetType.ValueString()); ok {
+		ent["Type"] = w
+	} else {
+		diags.AddAttributeError(p.AtName("target_type"), "Invalid target_type", fmt.Sprintf("%q is not a known target type.", o.TargetType.ValueString()))
+	}
+	return ent, diags
+}
+
+// aaStringsWire returns the list's strings, or an empty list when null or unknown.
+func aaStringsWire(l types.List) []string {
+	if ss := listStrings(l); ss != nil {
+		return ss
+	}
+	return []string{}
+}
+
+// aaDialScopeWire returns a directory lookup scope: Default when ids is empty, else a group scope.
+func aaDialScopeWire(ids []string) map[string]any {
+	if len(ids) == 0 {
+		return map[string]any{"Type": aaDialScopeDefault, "GroupDialScope": nil}
+	}
+	return map[string]any{"Type": aaDialScopeGroup, "GroupDialScope": map[string]any{"GroupIds": ids}}
+}
+
+// aaDialScopeFromWire maps a stored directory lookup scope to its group ids.
+func aaDialScopeFromWire(v any, prior types.List) (types.List, diag.Diagnostics) {
+	scope, _ := v.(map[string]any)
+	if !strings.EqualFold(getString(scope, "Type"), aaDialScopeGroup) {
+		return optListValue(nil, prior)
+	}
+	groups, _ := scope["GroupDialScope"].(map[string]any)
+	return optListValue(stringsOf(groups["GroupIds"]), prior)
 }
 
 // autoAttendantModelFromObject maps a stored auto attendant object onto the model.
@@ -707,11 +960,34 @@ func autoAttendantModelFromObject(ctx context.Context, obj map[string]any, m *au
 	readString(obj, "LanguageId", &m.LanguageID)
 	readString(obj, "TimeZoneId", &m.TimeZoneID)
 	diags.Append(readEnum(obj, "VoiceId", "VoiceId", aaVoices, true, &m.VoiceID)...)
+	voiceResponse, _ := obj["VoiceResponseEnabled"].(bool)
+	m.EnableVoiceResponse = types.BoolValue(voiceResponse)
+	userNameExt := types.StringValue("none")
+	diags.Append(readEnum(obj, "UserNameExtension", "UserNameExtension", aaUserNameExtensions, true, &userNameExt)...)
+	m.UserNameExtension = userNameExt
+	var d diag.Diagnostics
+	m.AuthorizedUsers, d = optListValue(stringsOf(obj["AuthorizedUsers"]), m.AuthorizedUsers)
+	diags.Append(d...)
+	m.HideAuthorizedUsers, d = optListValue(stringsOf(obj["HideAuthorizedUsers"]), m.HideAuthorizedUsers)
+	diags.Append(d...)
+	lookup, _ := obj["DirectoryLookupScope"].(map[string]any)
+	m.DialScopeIncludeGroupIDs, d = aaDialScopeFromWire(lookup["InclusionScope"], m.DialScopeIncludeGroupIDs)
+	diags.Append(d...)
+	m.DialScopeExcludeGroupIDs, d = aaDialScopeFromWire(lookup["ExclusionScope"], m.DialScopeExcludeGroupIDs)
+	diags.Append(d...)
+	priorOp, _ := m.operator(ctx)
+	op, d := aaOperatorFromWire(obj["Operator"], priorOp)
+	diags.Append(d...)
+	if op == nil {
+		m.Operator = types.ObjectNull(aaOperatorAttrTypes)
+	} else {
+		m.Operator, d = types.ObjectValueFrom(ctx, aaOperatorAttrTypes, *op)
+		diags.Append(d...)
+	}
 
 	prior, _ := m.flows(ctx)
 	var f aaFlows
 	def, _ := obj["DefaultCallFlow"].(map[string]any)
-	var d diag.Diagnostics
 	f.Default, d = aaCallFlowFromWire(def, prior.Default, "DefaultCallFlow")
 	diags.Append(d...)
 
@@ -782,6 +1058,10 @@ func aaCallFlowFromWire(flow map[string]any, prior aaCallFlowModel, field string
 	menu, _ := flow["Menu"].(map[string]any)
 	out.MenuPrompt, out.MenuPromptAudioFileID, d = aaPromptFromWire(menu["Prompts"], prior.MenuPrompt, prior.MenuPromptAudioFileID, field+".Menu.Prompts")
 	diags.Append(d...)
+	out.DirectorySearchMethod, d = aaOptEnumValue(menu, "DirectorySearchMethod", field+".Menu.DirectorySearchMethod", aaDirectorySearchMethods, "none", prior.DirectorySearchMethod)
+	diags.Append(d...)
+	out.ForceListenMenu = aaOptBoolValue(flow["ForceListenMenuEnabled"], prior.ForceListenMenu)
+	out.RingResourceAccountDelegates = aaOptBoolValue(flow["RingResourceAccountDelegates"], prior.RingResourceAccountDelegates)
 
 	priorByKey := map[string]aaMenuOptionModel{}
 	for _, o := range prior.MenuOption {
@@ -801,6 +1081,7 @@ func aaCallFlowFromWire(flow map[string]any, prior aaCallFlowModel, field string
 		o := aaMenuOptionModel{
 			Key: types.StringNull(), Action: types.StringNull(), TargetID: types.StringNull(),
 			TargetType: types.StringNull(), Announcement: types.StringNull(), AnnouncementAudioFileID: types.StringNull(),
+			SuppressSystemPrompt: types.BoolNull(), EnableTranscription: types.BoolNull(), CallPriority: types.Int64Null(),
 		}
 		diags.Append(readEnum(it, "DtmfResponse", of+".DtmfResponse", aaMenuKeys, true, &o.Key)...)
 		diags.Append(readEnum(it, "Action", of+".Action", aaMenuActions, true, &o.Action)...)
@@ -810,11 +1091,16 @@ func aaCallFlowFromWire(flow map[string]any, prior aaCallFlowModel, field string
 				o.TargetID = aaTargetValue(tid, p.TargetID)
 				diags.Append(readEnum(ct, "Type", of+".CallTarget.Type", aaTargetTypes, true, &o.TargetType)...)
 			}
+			o.SuppressSystemPrompt = aaOptBoolValue(ct["EnableSharedVoicemailSystemPromptSuppression"], p.SuppressSystemPrompt)
+			o.EnableTranscription = aaOptBoolValue(ct["EnableTranscription"], p.EnableTranscription)
+			o.CallPriority = aaOptInt64Value(ct["CallPriority"], p.CallPriority, aaDefaultCallPriority)
 		}
 		if pm, ok := it["Prompt"].(map[string]any); ok {
 			o.Announcement, o.AnnouncementAudioFileID, d = aaPromptObjectFromWire(pm, p.Announcement, p.AnnouncementAudioFileID, of+".Prompt")
 			diags.Append(d...)
 		}
+		o.VoiceResponses, d = optListValue(stringsOf(it["VoiceResponses"]), p.VoiceResponses)
+		diags.Append(d...)
 		out.MenuOption = append(out.MenuOption, o)
 	}
 	return out, diags
@@ -861,3 +1147,75 @@ func aaTargetValue(id string, prior types.String) types.String {
 	}
 	return types.StringValue(id)
 }
+
+// aaOptBoolValue maps a stored optional flag to the attribute value. A false or
+// absent flag reads as null unless the prior value was set.
+func aaOptBoolValue(v any, prior types.Bool) types.Bool {
+	b, _ := v.(bool)
+	if !b && (prior.IsNull() || prior.IsUnknown()) {
+		return types.BoolNull()
+	}
+	return types.BoolValue(b)
+}
+
+// aaOptInt64Value maps a stored optional number to the attribute value. An absent
+// number reads as def, and def reads as null unless the prior value was set.
+func aaOptInt64Value(v any, prior types.Int64, def int64) types.Int64 {
+	n := types.Int64Value(def)
+	readInt64(map[string]any{"v": v}, "v", &n)
+	if n.ValueInt64() == def && (prior.IsNull() || prior.IsUnknown()) {
+		return types.Int64Null()
+	}
+	return n
+}
+
+// aaOptEnumValue maps a stored optional enum to the attribute value. An absent
+// value reads as def, and def reads as null unless the prior value was set.
+func aaOptEnumValue(obj map[string]any, key, field string, e wireEnum, def string, prior types.String) (types.String, diag.Diagnostics) {
+	out := types.StringValue(def)
+	diags := readEnum(obj, key, field, e, true, &out)
+	if diags.HasError() {
+		return prior, diags
+	}
+	if out.ValueString() == def && (prior.IsNull() || prior.IsUnknown()) {
+		return types.StringNull(), diags
+	}
+	return out, diags
+}
+
+// aaOperatorFromWire maps a stored operator callable entity onto the operator model.
+// A null operator or one without an id reads as nil.
+func aaOperatorFromWire(v any, prior *aaOperatorModel) (*aaOperatorModel, diag.Diagnostics) {
+	ent, _ := v.(map[string]any)
+	id := getString(ent, "Id")
+	if id == "" {
+		return nil, nil
+	}
+	var p aaOperatorModel
+	if prior != nil {
+		p = *prior
+	}
+	o := aaOperatorModel{
+		TargetID:             aaTargetValue(id, p.TargetID),
+		TargetType:           types.StringNull(),
+		CallPriority:         aaOptInt64Value(ent["CallPriority"], p.CallPriority, aaDefaultCallPriority),
+		EnableTranscription:  aaOptBoolValue(ent["EnableTranscription"], p.EnableTranscription),
+		SuppressSystemPrompt: aaOptBoolValue(ent["EnableSharedVoicemailSystemPromptSuppression"], p.SuppressSystemPrompt),
+	}
+	diags := readEnum(ent, "Type", "Operator.Type", aaTargetTypes, true, &o.TargetType)
+	return &o, diags
+}
+
+// Auto attendant enums declared with this resource.
+var (
+	aaDirectorySearchMethods = newWireEnum(
+		[2]string{"none", "None"},
+		[2]string{"by_name", "ByName"},
+		[2]string{"by_extension", "ByExtension"},
+	)
+	aaUserNameExtensions = newWireEnum(
+		[2]string{"none", "None"},
+		[2]string{"office", "Office"},
+		[2]string{"department", "Department"},
+	)
+)
